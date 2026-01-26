@@ -1,0 +1,69 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cloud_db
+    environment:
+      POSTGRES_DB: cloud
+      POSTGRES_USER: cloud
+      POSTGRES_PASSWORD: cloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./Infrastructure/database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloud -d cloud"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./Backend/web
+      dockerfile: Dockerfile
+    container_name: cloud_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/cloud
+      SPRING_DATASOURCE_USERNAME: cloud
+      SPRING_DATASOURCE_PASSWORD: cloud
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      AUTH_JWT_SECRET: change-me-in-env
+      AUTH_MODE: offline
+    ports:
+      - "8080:8080"
+
+  tileserver:
+    image: maptiler/tileserver-gl:latest
+    container_name: cloud_tileserver
+    command: ["--file", "/data/map.mbtiles"]
+    volumes:
+      - ./Infrastructure/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles:/data/map.mbtiles:ro
+    ports:
+      - "8081:8080"
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: cloud_frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8080
+      VITE_TILESERVER_URL: http://localhost:8081
+    ports:
+      - "5173:5173"
+
+  mobile:
+    build:
+      context: ./Mobile
+      dockerfile: Dockerfile
+    container_name: cloud_mobile
+    ports:
+      - "4174:80"
+
+volumes:
+  db_data:

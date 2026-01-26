@@ -1,0 +1,60 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# Logs
+*.log
+
+# Java / Maven / Spring Boot
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Node / React / Vite / Ionic
+**/node_modules/
+**/dist/
+**/build/
+**/.vite/
+**/.cache/
+
+# Mobile (Ionic / Capacitor)
+**/android/
+**/ios/
+**/.gradle/
+**/www/
+**/plugins/
+**/*.apk
+**/*.aab
+
+# Env files / secrets
+.env
+.env.*
+*.pem
+*.key
+apikey.txt
+cloud-s5-f402e-firebase-adminsdk-fbsvc-6a09efccb5.json
+
+# Offline map data
+**/*.mbtiles
+
+# Docker
+**/.dockerignore
+
+# Local DB / volumes (if ever created in repo)
+*.sqlite
+*.db
+
+# Temporary / backups
+*.swp
+*.swo
+*~
+*.tmp
