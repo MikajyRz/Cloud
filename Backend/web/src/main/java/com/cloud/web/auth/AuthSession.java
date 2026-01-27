@@ -1,13 +1,9 @@
 package com.cloud.web.auth;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Table;
+import com.cloud.web.utilisateur.Utilisateur;
+import jakarta.persistence.*;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -16,21 +12,22 @@ public class AuthSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(nullable = false)
     private UUID id;
 
-    @Column(name = "id_utilisateur", nullable = false)
-    private UUID idUtilisateur;
+    @ManyToOne
+    @JoinColumn(name = "id_utilisateur", nullable = false)
+    private Utilisateur utilisateur;
 
-    @Column(name = "token", nullable = false, unique = true)
+    @Column(nullable = false, unique = true, columnDefinition = "TEXT")
     private String token;
 
-    @Column(name = "date_creation", nullable = false)
-    private Instant dateCreation;
+    @Column(name = "date_creation")
+    private LocalDateTime dateCreation = LocalDateTime.now();
 
     @Column(name = "date_expiration", nullable = false)
-    private Instant dateExpiration;
+    private LocalDateTime dateExpiration;
 
+    // Getters and Setters
     public UUID getId() {
         return id;
     }
@@ -39,12 +36,12 @@ public class AuthSession {
         this.id = id;
     }
 
-    public UUID getIdUtilisateur() {
-        return idUtilisateur;
+    public Utilisateur getUtilisateur() {
+        return utilisateur;
     }
 
-    public void setIdUtilisateur(UUID idUtilisateur) {
-        this.idUtilisateur = idUtilisateur;
+    public void setUtilisateur(Utilisateur utilisateur) {
+        this.utilisateur = utilisateur;
     }
 
     public String getToken() {
@@ -55,19 +52,54 @@ public class AuthSession {
         this.token = token;
     }
 
-    public Instant getDateCreation() {
+    public LocalDateTime getDateCreation() {
         return dateCreation;
     }
 
-    public void setDateCreation(Instant dateCreation) {
+    public void setDateCreation(LocalDateTime dateCreation) {
         this.dateCreation = dateCreation;
     }
 
-    public Instant getDateExpiration() {
+    public LocalDateTime getDateExpiration() {
         return dateExpiration;
     }
 
-    public void setDateExpiration(Instant dateExpiration) {
+    public void setDateExpiration(LocalDateTime dateExpiration) {
         this.dateExpiration = dateExpiration;
+    }
+
+    // Backward compatibility methods
+    public String getUserEmail() {
+        return utilisateur != null ? utilisateur.getEmail() : null;
+    }
+
+    public void setUserEmail(String userEmail) {
+        // Not directly settable, must set utilisateur
+    }
+
+    public java.time.Instant getExpiresAt() {
+        return dateExpiration != null ? 
+            dateExpiration.atZone(java.time.ZoneId.systemDefault()).toInstant() : null;
+    }
+
+    public void setExpiresAt(java.time.Instant expiresAt) {
+        this.dateExpiration = expiresAt != null ? 
+            LocalDateTime.ofInstant(expiresAt, java.time.ZoneId.systemDefault()) : null;
+    }
+
+    public String getJti() {
+        return token;  // Use token as JTI for backward compatibility
+    }
+
+    public void setJti(String jti) {
+        // Ignored for backward compatibility
+    }
+
+    public boolean isRevoked() {
+        return false;  // Not using revoked anymore
+    }
+
+    public void setRevoked(boolean revoked) {
+        // Ignored for backward compatibility
     }
 }

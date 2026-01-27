@@ -4,11 +4,10 @@ import com.cloud.web.auth.dto.AuthResponse;
 import com.cloud.web.auth.dto.LoginRequest;
 import com.cloud.web.auth.dto.SignupRequest;
 import com.cloud.web.security.JwtService;
-import com.cloud.web.user.User;
-import com.cloud.web.user.UserRepository;
-import com.cloud.web.user.UserRole;
+import com.cloud.web.utilisateur.Utilisateur;
+import com.cloud.web.utilisateur.UtilisateurRepository;
+import com.cloud.web.utilisateur.RoleUtilisateur;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,14 +16,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
-/**
- * Offline implementation of AuthFacade, enabled only when auth.mode=offline (default)
- */
 @Service
-@ConditionalOnProperty(name = "auth.mode", havingValue = "offline", matchIfMissing = true)
-public class AuthService implements AuthFacade {
+public class AuthService {
 
-    private final UserRepository userRepository;
+    private final UtilisateurRepository utilisateurRepository;
     private final AuthSessionRepository authSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -32,13 +27,13 @@ public class AuthService implements AuthFacade {
     private final int maxLoginAttempts;
     private final int lockMinutes;
 
-    public AuthService(UserRepository userRepository,
+    public AuthService(UtilisateurRepository utilisateurRepository,
                        AuthSessionRepository authSessionRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        @Value("${auth.maxLoginAttempts:3}") int maxLoginAttempts,
                        @Value("${auth.lockMinutes:15}") int lockMinutes) {
-        this.userRepository = userRepository;
+        this.utilisateurRepository = utilisateurRepository;
         this.authSessionRepository = authSessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -47,81 +42,66 @@ public class AuthService implements AuthFacade {
     }
 
     @Transactional
-    @Override
     public void signup(SignupRequest req) {
-        if (userRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalArgumentException("Email already used");
+        if (utilisateurRepository.existsByEmail(req.getEmail())) {
+            throw new IllegalArgumentException("Email déjà utilisé");
         }
-        User user = new User();
-        user.setEmail(req.getEmail().toLowerCase());
-        user.setNom(req.getFullName());
-        user.setPrenom(null);
-        user.setMotDePasse(passwordEncoder.encode(req.getPassword()));
-        user.setRole(UserRole.UTILISATEUR);
-        user.setTentativesEchouees(0);
-        user.setEstBloque(false);
-        userRepository.save(user);
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setEmail(req.getEmail().toLowerCase());
+        utilisateur.setNomComplet(req.getFullName());
+        utilisateur.setMotDePasse(passwordEncoder.encode(req.getPassword()));
+        utilisateur.setRole(RoleUtilisateur.UTILISATEUR);
+        utilisateur.setTentativesEchouees(0);
+        utilisateur.setEstBloque(false);
+        utilisateurRepository.save(utilisateur);
     }
 
     @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
-    @Override
     public AuthResponse login(LoginRequest req) {
-        var userOpt = userRepository.findByEmail(req.getEmail().toLowerCase());
+        var userOpt = utilisateurRepository.findByEmail(req.getEmail().toLowerCase());
         if (userOpt.isEmpty()) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new IllegalArgumentException("Identifiants invalides");
         }
-        User user = userOpt.get();
-        if (user.isLockedNow()) {
-            throw new IllegalStateException("Account locked");
+        Utilisateur utilisateur = userOpt.get();
+        if (utilisateur.estBloqueMaintenant()) {
+            throw new IllegalStateException("Compte bloqué");
         }
 
-        boolean ok = passwordMatches(req.getPassword(), user.getMotDePasse());
+        boolean ok = passwordEncoder.matches(req.getPassword(), utilisateur.getMotDePasse());
         if (!ok) {
-            int attempts = user.getTentativesEchouees() + 1;
-            user.setTentativesEchouees(attempts);
+            int attempts = utilisateur.getTentativesEchouees() + 1;
+            utilisateur.setTentativesEchouees(attempts);
             if (attempts >= maxLoginAttempts) {
-                user.setEstBloque(true);
+                utilisateur.setEstBloque(true);
             }
-            userRepository.save(user);
-            throw new IllegalArgumentException("Invalid credentials");
+            utilisateurRepository.save(utilisateur);
+            throw new IllegalArgumentException("Identifiants invalides");
         }
 
-        user.setTentativesEchouees(0);
-        user.setEstBloque(false);
-        userRepository.save(user);
+        utilisateur.setTentativesEchouees(0);
+        utilisateur.setEstBloque(false);
+        utilisateurRepository.save(utilisateur);
 
-        var issued = jwtService.issueToken(user.getEmail(), Map.of("role", user.getRole().name()));
+        var issued = jwtService.issueToken(utilisateur.getEmail(), Map.of("role", utilisateur.getRole().name()));
 
         AuthSession session = new AuthSession();
-        session.setIdUtilisateur(user.getId());
+        session.setUtilisateur(utilisateur);
         session.setToken(issued.token());
-        session.setDateCreation(Instant.now());
-        session.setDateExpiration(issued.expiresAt());
+        session.setExpiresAt(issued.expiresAt());
         authSessionRepository.save(session);
 
         return new AuthResponse(issued.token(), issued.expiresAt());
     }
 
     @Transactional
-    @Override
     public void unlockUser(String email) {
-        var userOpt = userRepository.findByEmail(email.toLowerCase());
+        var userOpt = utilisateurRepository.findByEmail(email.toLowerCase());
         if (userOpt.isEmpty()) {
             return;
         }
-        User user = userOpt.get();
-        user.setTentativesEchouees(0);
-        user.setEstBloque(false);
-        userRepository.save(user);
-    }
-
-    private boolean passwordMatches(String rawPassword, String storedPassword) {
-        if (storedPassword == null) {
-            return false;
-        }
-        if (passwordEncoder.matches(rawPassword, storedPassword)) {
-            return true;
-        }
-        return storedPassword.equals(rawPassword);
+        Utilisateur utilisateur = userOpt.get();
+        utilisateur.setTentativesEchouees(0);
+        utilisateur.setEstBloque(false);
+        utilisateurRepository.save(utilisateur);
     }
 }

@@ -73,7 +73,7 @@ export async function signupApi(req: SignupRequest): Promise<void> {
   })
 }
 
-export async function unlockUserApi(token: string, email: string): Promise<void> {
+export async function unlockUtilisateurApi(token: string, email: string): Promise<void> {
   await http<void>('/api/auth/unlock', {
     method: 'POST',
     token,
@@ -82,7 +82,7 @@ export async function unlockUserApi(token: string, email: string): Promise<void>
 }
 
 export async function meApi(token: string): Promise<UserMeResponse> {
-  return http<UserMeResponse>('/api/users/me', {
+  return http<UserMeResponse>('/api/utilisateurs/me', {
     method: 'GET',
     token,
   })

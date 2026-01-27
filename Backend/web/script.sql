@@ -18,12 +18,18 @@ CREATE TABLE utilisateur (
 );
 
 
+INSERT INTO utilisateur (email, mot_de_passe, role)
+VALUES ('manager@clouds5.local', 'manager123', 'MANAGER');
 
 
 CREATE TABLE parametre_systeme (
     cle VARCHAR(80) PRIMARY KEY,
     valeur VARCHAR(50) NOT NULL
 );
+
+INSERT INTO parametre_systeme VALUES
+('MAX_TENTATIVES_CONNEXION', '3'),
+('DUREE_SESSION_MINUTES', '30');
 
 
 CREATE TABLE session_utilisateur (
@@ -102,12 +108,3 @@ CREATE INDEX idx_user_email ON utilisateur(email);
 CREATE INDEX idx_signalement_statut ON signalement(statut);
 CREATE INDEX idx_signalement_user ON signalement(id_utilisateur);
 CREATE INDEX idx_session_token ON session_utilisateur(token);
-
-
-
-INSERT INTO utilisateur (email, mot_de_passe, role)
-VALUES ('manager@clouds5.local', 'manager123', 'MANAGER');
-
-INSERT INTO parametre_systeme VALUES
-('MAX_TENTATIVES_CONNEXION', '3'),
-('DUREE_SESSION_MINUTES', '30');

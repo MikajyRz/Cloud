@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { unlockUserApi } from '@/auth/api'
+import { unlockUtilisateurApi } from '@/auth/api'
 
 export default function ManagerPage() {
   const { me, token, logout } = useAuth()
@@ -22,7 +22,7 @@ export default function ManagerPage() {
 
     setLoading(true)
     try {
-      await unlockUserApi(token, email)
+      await unlockUtilisateurApi(token, email)
       setSuccess(`Utilisateur débloqué (si existant): ${email}`)
       setEmail('')
     } catch (err) {
