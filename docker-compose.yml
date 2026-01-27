@@ -65,5 +65,15 @@ services:
     ports:
       - "4174:80"
 
+  mobile-dev:
+    build:
+      context: ./Mobile
+      dockerfile: Dockerfile.dev
+    container_name: cloud_mobile_dev
+    env_file:
+      - ./Mobile/.env
+    ports:
+      - "5174:5174"
+
 volumes:
   db_data:

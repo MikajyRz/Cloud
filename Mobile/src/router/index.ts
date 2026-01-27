@@ -1,39 +1,49 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
-import { RouteRecordRaw } from 'vue-router';
-import TabsPage from '../views/TabsPage.vue'
+import { RouteRecordRaw, type RouteLocationNormalized } from 'vue-router';
+import { useAuth } from '@/composables/useAuth'
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    redirect: '/tabs/tab1'
+    redirect: '/home'
   },
   {
-    path: '/tabs/',
-    component: TabsPage,
-    children: [
-      {
-        path: '',
-        redirect: '/tabs/tab1'
-      },
-      {
-        path: 'tab1',
-        component: () => import('@/views/Tab1Page.vue')
-      },
-      {
-        path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue')
-      },
-      {
-        path: 'tab3',
-        component: () => import('@/views/Tab3Page.vue')
-      }
-    ]
+    path: '/login',
+    component: () => import('@/views/LoginPage.vue')
+  },
+  {
+    path: '/register',
+    component: () => import('@/views/RegisterPage.vue')
+  },
+  {
+    path: '/home',
+    component: () => import('@/views/HomePage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
+})
+
+router.beforeEach(async (to: RouteLocationNormalized) => {
+  const { getCurrentUser } = useAuth()
+  const u = await getCurrentUser()
+
+  if ((to.path === '/login' || to.path === '/register') && u) {
+    return { path: '/home' }
+  }
+
+  if (to.matched.some((r) => r.meta?.requiresAuth) && !u) {
+    return { path: '/login' }
+  }
+
+  return true
 })
 
 export default router
