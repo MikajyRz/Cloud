@@ -32,8 +32,11 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       AUTH_JWT_SECRET: change-me-in-env
       AUTH_MODE: offline
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
     ports:
       - "8080:8080"
+    volumes:
+      - ./cloud-s5-f402e-firebase-adminsdk-fbsvc-6a09efccb5.json:/run/secrets/firebase-admin.json:ro
 
   tileserver:
     image: maptiler/tileserver-gl:latest

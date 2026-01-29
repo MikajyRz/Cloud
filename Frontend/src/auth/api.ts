@@ -12,6 +12,13 @@ export type UserMeResponse = {
   role: UserRole
 }
 
+export type SyncReportsResponse = {
+  fetched: number
+  inserted: number
+  updated: number
+  collection: string
+}
+
 type LoginRequest = {
   email: string
   password: string
@@ -84,6 +91,13 @@ export async function unlockUserApi(token: string, email: string): Promise<void>
 export async function meApi(token: string): Promise<UserMeResponse> {
   return http<UserMeResponse>('/api/users/me', {
     method: 'GET',
+    token,
+  })
+}
+
+export async function syncReportsApi(token: string): Promise<SyncReportsResponse> {
+  return http<SyncReportsResponse>('/api/manager/sync-reports', {
+    method: 'POST',
     token,
   })
 }

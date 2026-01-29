@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { unlockUserApi } from '@/auth/api'
+import { syncReportsApi, unlockUserApi, type SyncReportsResponse } from '@/auth/api'
 
 export default function ManagerPage() {
   const { me, token, logout } = useAuth()
@@ -9,6 +9,30 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncResult, setSyncResult] = useState<SyncReportsResponse | null>(null)
+
+  const onSync = async () => {
+    setSyncError(null)
+    setSyncResult(null)
+
+    if (!token) {
+      setSyncError('Token manquant. Reconnecte-toi.')
+      return
+    }
+
+    setSyncLoading(true)
+    try {
+      const res = await syncReportsApi(token)
+      setSyncResult(res)
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSyncLoading(false)
+    }
+  }
 
   const onUnlock = async (e: FormEvent) => {
     e.preventDefault()
@@ -33,22 +57,37 @@ export default function ManagerPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Manager</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link to="/" style={{ textDecoration: 'none' }}>Retour carte</Link>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <aside
+        style={{
+          width: 240,
+          padding: 16,
+          borderRight: '1px solid rgba(0,0,0,0.12)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'grid', gap: 6 }}>
+          <h2 style={{ margin: 0 }}>Manager</h2>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>
+            Connecté: <strong>{me?.email}</strong>
+          </div>
+        </div>
+
+        <nav style={{ display: 'grid', gap: 8 }}>
+          <Link to="/" style={{ textDecoration: 'none' }}>Carte</Link>
+          <Link to="/manager" style={{ textDecoration: 'none' }}>Panneau manager</Link>
+        </nav>
+
+        <div style={{ marginTop: 'auto', display: 'grid', gap: 8 }}>
           <button onClick={logout}>Logout</button>
         </div>
-      </div>
+      </aside>
 
-      <p style={{ marginTop: 8 }}>
-        Connecté en tant que: <strong>{me?.email}</strong>
-      </p>
-
-      <hr style={{ margin: '16px 0' }} />
-
-      <section style={{ display: 'grid', gap: 8 }}>
+      <main style={{ flex: 1, padding: 16 }}>
+        <div style={{ maxWidth: 820, margin: '0 auto' }}>
+          <section style={{ display: 'grid', gap: 8 }}>
         <h3 style={{ margin: 0 }}>Débloquer un utilisateur</h3>
         <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>
           Appelle <code>/api/auth/unlock</code> (réservé MANAGER).
@@ -79,7 +118,17 @@ export default function ManagerPage() {
         <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>
           À faire: endpoint backend pour récupérer les signalements depuis Firestore et/ou envoyer des données vers Firestore.
         </p>
-        <button disabled type="button">Synchroniser (à implémenter)</button>
+        <button disabled={syncLoading} type="button" onClick={onSync}>
+          {syncLoading ? 'Synchronisation…' : 'Synchroniser'}
+        </button>
+
+        {syncError ? <div style={{ color: 'crimson' }}>{syncError}</div> : null}
+        {syncResult ? (
+          <div style={{ color: 'green' }}>
+            Import Firestore <code>{syncResult.collection}</code> → Postgres :
+            fetched={syncResult.fetched}, inserted={syncResult.inserted}, updated={syncResult.updated}
+          </div>
+        ) : null}
       </section>
 
       <hr style={{ margin: '16px 0' }} />
@@ -91,6 +140,9 @@ export default function ManagerPage() {
         </p>
         <button disabled type="button">Charger les signalements (à implémenter)</button>
       </section>
+
+        </div>
+      </main>
     </div>
   )
 }

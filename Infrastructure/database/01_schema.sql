@@ -49,6 +49,7 @@ CREATE TABLE entreprise (
 
 CREATE TABLE signalement (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    firestore_id VARCHAR(128) UNIQUE,
     titre VARCHAR(150),
     description TEXT,
     latitude NUMERIC(9,6) NOT NULL,
