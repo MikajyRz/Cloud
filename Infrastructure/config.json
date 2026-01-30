@@ -2,17 +2,22 @@
   "options": {
     "paths": {
       "root": "",
-      "styles": "styles"
-    }
+      "styles": "styles",
+      "fonts": "fonts",
+      "sprites": "sprites",
+      "mbtiles": ""
+    },
+    "serveAllStyles": true
   },
   "styles": {
     "basic": {
       "style": "basic/style.json",
-      "serve_rendered": true,
-      "tilejson": {
-        "type": "overlay"
-      }
+      "serve_rendered": true
     }
   },
-  "data": {}
+  "data": {
+    "madagascar": {
+      "mbtiles": "madagascar_antananarivo.mbtiles"
+    }
+  }
 }

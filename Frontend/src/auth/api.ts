@@ -87,3 +87,27 @@ export async function meApi(token: string): Promise<UserMeResponse> {
     token,
   })
 }
+
+export type SyncResultDto = {
+  success: boolean
+  message: string
+  utilisateurs: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+  signalements: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+  logs: string[]
+  errors: string[]
+}
+
+export async function synchronizeBidirectionalApi(token: string): Promise<SyncResultDto> {
+  return http<SyncResultDto>('/api/sync/synchronize', {
+    method: 'POST',
+    token,
+  })
+}

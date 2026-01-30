@@ -3,6 +3,7 @@ package com.cloud.web.sync;
 import com.cloud.web.signalement.Signalement;
 import com.cloud.web.signalement.SignalementRepository;
 import com.cloud.web.sync.dto.SignalementSyncDto;
+import com.cloud.web.sync.dto.SyncResultDto;
 import com.cloud.web.sync.dto.UtilisateurSyncDto;
 import com.cloud.web.utilisateur.Utilisateur;
 import com.cloud.web.utilisateur.UtilisateurRepository;
@@ -249,6 +250,284 @@ public class FirebaseSyncService {
      */
     public List<FirebaseSync> getSyncHistory(String typeDonnee) {
         return syncRepository.findByTypeDonneeAndSens(typeDonnee, null);
+    }
+
+    /**
+     * SYNCHRONISATION BIDIRECTIONNELLE COMPLÈTE
+     * 
+     * Règles de synchronisation :
+     * 1. Nouvelles données dans Firestore (absentes dans PostgreSQL) → INSERT dans PostgreSQL
+     * 2. Données existantes dans les deux systèmes avec différences → PostgreSQL prioritaire → UPDATE Firestore
+     * 3. Modifications depuis frontend (stockées dans PostgreSQL) → UPDATE Firestore
+     * 
+     * @return SyncResultDto avec statistiques et logs de la synchronisation
+     */
+    @Transactional
+    public SyncResultDto synchronizeBidirectional() throws ExecutionException, InterruptedException {
+        SyncResultDto result = new SyncResultDto();
+        
+        if (!isFirebaseAvailable()) {
+            result.setSuccess(false);
+            result.setMessage("Firebase n'est pas configuré. Téléchargez firebase-admin.json");
+            result.addError("Firebase non disponible");
+            return result;
+        }
+
+        try {
+            result.addLog("🔄 Début de la synchronisation bidirectionnelle");
+            
+            // Synchronisation des utilisateurs
+            syncUtilisateursBidirectional(result);
+            
+            // Synchronisation des signalements
+            syncSignalementsBidirectional(result);
+            
+            result.setSuccess(true);
+            result.setMessage(String.format(
+                "Synchronisation réussie : %d utilisateur(s) (%d nouveaux, %d mis à jour), %d signalement(s) (%d nouveaux, %d mis à jour)",
+                result.getUtilisateurs().getTotal(),
+                result.getUtilisateurs().getNouveauxDepuisFirestore(),
+                result.getUtilisateurs().getMisAJourVersFirestore(),
+                result.getSignalements().getTotal(),
+                result.getSignalements().getNouveauxDepuisFirestore(),
+                result.getSignalements().getMisAJourVersFirestore()
+            ));
+            result.addLog("✅ Synchronisation terminée avec succès");
+            
+        } catch (Exception e) {
+            result.setSuccess(false);
+            result.setMessage("Erreur lors de la synchronisation : " + e.getMessage());
+            result.addError("Exception : " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return result;
+    }
+
+    /**
+     * Synchronisation bidirectionnelle des utilisateurs
+     */
+    private void syncUtilisateursBidirectional(SyncResultDto result) throws ExecutionException, InterruptedException {
+        result.addLog("📋 Synchronisation des utilisateurs...");
+        
+        // Récupérer tous les utilisateurs de Firestore
+        CollectionReference usersRef = getFirestore().collection("utilisateurs");
+        ApiFuture<QuerySnapshot> future = usersRef.get();
+        List<QueryDocumentSnapshot> firestoreDocs = future.get().getDocuments();
+        
+        // Récupérer tous les utilisateurs de PostgreSQL
+        List<Utilisateur> pgUsers = utilisateurRepository.findAll();
+        
+        // Map pour accès rapide par email
+        Map<String, Utilisateur> pgUserMap = new HashMap<>();
+        for (Utilisateur u : pgUsers) {
+            pgUserMap.put(u.getEmail().toLowerCase(), u);
+        }
+        
+        // Traiter les utilisateurs Firestore
+        for (QueryDocumentSnapshot doc : firestoreDocs) {
+            try {
+                Map<String, Object> data = doc.getData();
+                String email = ((String) data.get("email")).toLowerCase();
+                
+                Utilisateur pgUser = pgUserMap.get(email);
+                
+                if (pgUser == null) {
+                    // CAS 1 : Nouvelle donnée dans Firestore → INSERT dans PostgreSQL
+                    UtilisateurSyncDto dto = new UtilisateurSyncDto();
+                    dto.setEmail(email);
+                    dto.setNom((String) data.get("nom"));
+                    dto.setPrenom((String) data.get("prenom"));
+                    dto.setMotDePasse((String) data.get("motDePasse"));
+                    dto.setRole((String) data.get("role"));
+                    dto.setTelephone((String) data.get("telephone"));
+                    
+                    Utilisateur newUser = dto.toEntity();
+                    utilisateurRepository.save(newUser);
+                    
+                    result.getUtilisateurs().incrementNouveaux();
+                    result.addLog("➕ Nouvel utilisateur importé : " + email);
+                    
+                    // Log la synchronisation
+                    logSync("UTILISATEUR", UUID.nameUUIDFromBytes(email.getBytes()), SyncType.PULL);
+                    
+                } else {
+                    // CAS 2 : Donnée existante → Vérifier s'il y a des différences
+                    if (hasUserChanged(pgUser, data)) {
+                        // PostgreSQL prioritaire → Mettre à jour Firestore
+                        UtilisateurSyncDto dto = new UtilisateurSyncDto(pgUser);
+                        Map<String, Object> userData = convertToMap(dto);
+                        
+                        String docId = pgUser.getEmail().replace(".", "_");
+                        usersRef.document(docId).set(userData).get();
+                        
+                        result.getUtilisateurs().incrementMisAJour();
+                        result.addLog("🔄 Utilisateur mis à jour vers Firestore : " + email);
+                        
+                        // Log la synchronisation
+                        logSync("UTILISATEUR", UUID.nameUUIDFromBytes(email.getBytes()), SyncType.PUSH);
+                    }
+                }
+                
+                // Retirer de la map pour identifier les utilisateurs qui n'existent que dans PostgreSQL
+                pgUserMap.remove(email);
+                
+            } catch (Exception e) {
+                result.addError("Erreur utilisateur " + doc.getId() + " : " + e.getMessage());
+            }
+        }
+        
+        // CAS 3 : Utilisateurs présents uniquement dans PostgreSQL → PUSH vers Firestore
+        for (Utilisateur pgUser : pgUserMap.values()) {
+            try {
+                UtilisateurSyncDto dto = new UtilisateurSyncDto(pgUser);
+                Map<String, Object> userData = convertToMap(dto);
+                
+                String docId = pgUser.getEmail().replace(".", "_");
+                usersRef.document(docId).set(userData).get();
+                
+                result.getUtilisateurs().incrementMisAJour();
+                result.addLog("📤 Utilisateur poussé vers Firestore : " + pgUser.getEmail());
+                
+                // Log la synchronisation
+                logSync("UTILISATEUR", UUID.nameUUIDFromBytes(pgUser.getEmail().getBytes()), SyncType.PUSH);
+                
+            } catch (Exception e) {
+                result.addError("Erreur PUSH utilisateur " + pgUser.getEmail() + " : " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Synchronisation bidirectionnelle des signalements
+     */
+    private void syncSignalementsBidirectional(SyncResultDto result) throws ExecutionException, InterruptedException {
+        result.addLog("📋 Synchronisation des signalements...");
+        
+        // Récupérer tous les signalements de Firestore
+        CollectionReference sigRef = getFirestore().collection("signalements");
+        ApiFuture<QuerySnapshot> future = sigRef.get();
+        List<QueryDocumentSnapshot> firestoreDocs = future.get().getDocuments();
+        
+        // Récupérer tous les signalements de PostgreSQL
+        List<Signalement> pgSignalements = signalementRepository.findAll();
+        
+        // Map pour accès rapide par UUID
+        Map<UUID, Signalement> pgSigMap = new HashMap<>();
+        for (Signalement sig : pgSignalements) {
+            pgSigMap.put(sig.getId(), sig);
+        }
+        
+        // Traiter les signalements Firestore
+        for (QueryDocumentSnapshot doc : firestoreDocs) {
+            try {
+                String idStr = doc.getId();
+                UUID firestoreId = UUID.fromString(idStr);
+                
+                Signalement pgSignalement = pgSigMap.get(firestoreId);
+                
+                if (pgSignalement == null) {
+                    // CAS 1 : Nouveau signalement dans Firestore → INSERT dans PostgreSQL
+                    SignalementSyncDto dto = doc.toObject(SignalementSyncDto.class);
+                    dto.setId(idStr); // S'assurer que l'ID est préservé
+                    
+                    Signalement newSignalement = dto.toEntity(utilisateurRepository);
+                    signalementRepository.save(newSignalement);
+                    
+                    result.getSignalements().incrementNouveaux();
+                    result.addLog("➕ Nouveau signalement importé : " + idStr);
+                    
+                    // Log la synchronisation
+                    logSync("SIGNALEMENT", firestoreId, SyncType.PULL);
+                    
+                } else {
+                    // CAS 2 : Signalement existant → Vérifier s'il y a des différences
+                    Map<String, Object> firestoreData = doc.getData();
+                    if (hasSignalementChanged(pgSignalement, firestoreData)) {
+                        // PostgreSQL prioritaire → Mettre à jour Firestore
+                        SignalementSyncDto dto = new SignalementSyncDto(pgSignalement);
+                        Map<String, Object> sigData = convertToMap(dto);
+                        
+                        sigRef.document(idStr).set(sigData).get();
+                        
+                        result.getSignalements().incrementMisAJour();
+                        result.addLog("🔄 Signalement mis à jour vers Firestore : " + idStr);
+                        
+                        // Log la synchronisation
+                        logSync("SIGNALEMENT", firestoreId, SyncType.PUSH);
+                    }
+                }
+                
+                // Retirer de la map
+                pgSigMap.remove(firestoreId);
+                
+            } catch (Exception e) {
+                result.addError("Erreur signalement " + doc.getId() + " : " + e.getMessage());
+            }
+        }
+        
+        // CAS 3 : Signalements présents uniquement dans PostgreSQL → PUSH vers Firestore
+        for (Signalement pgSig : pgSigMap.values()) {
+            try {
+                SignalementSyncDto dto = new SignalementSyncDto(pgSig);
+                Map<String, Object> sigData = convertToMap(dto);
+                
+                sigRef.document(pgSig.getId().toString()).set(sigData).get();
+                
+                result.getSignalements().incrementMisAJour();
+                result.addLog("📤 Signalement poussé vers Firestore : " + pgSig.getId());
+                
+                // Log la synchronisation
+                logSync("SIGNALEMENT", pgSig.getId(), SyncType.PUSH);
+                
+            } catch (Exception e) {
+                result.addError("Erreur PUSH signalement " + pgSig.getId() + " : " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Vérifier si un utilisateur a changé entre Firestore et PostgreSQL
+     */
+    private boolean hasUserChanged(Utilisateur pgUser, Map<String, Object> firestoreData) {
+        String fsNom = (String) firestoreData.get("nom");
+        String fsPrenom = (String) firestoreData.get("prenom");
+        String fsRole = (String) firestoreData.get("role");
+        String fsTelephone = (String) firestoreData.get("telephone");
+        
+        return !Objects.equals(pgUser.getNom(), fsNom) ||
+               !Objects.equals(pgUser.getPrenom(), fsPrenom) ||
+               !pgUser.getRole().name().equals(fsRole) ||
+               !Objects.equals(pgUser.getTelephone(), fsTelephone);
+    }
+
+    /**
+     * Vérifier si un signalement a changé entre Firestore et PostgreSQL
+     */
+    private boolean hasSignalementChanged(Signalement pgSig, Map<String, Object> firestoreData) {
+        String fsTitre = (String) firestoreData.get("titre");
+        String fsDescription = (String) firestoreData.get("description");
+        String fsStatut = (String) firestoreData.get("statut");
+        
+        return !Objects.equals(pgSig.getTitre(), fsTitre) ||
+               !Objects.equals(pgSig.getDescription(), fsDescription) ||
+               !pgSig.getStatut().name().equals(fsStatut);
+    }
+
+    /**
+     * Logger une synchronisation dans la base de données
+     */
+    private void logSync(String typeDonnee, UUID idReference, SyncType sens) {
+        try {
+            FirebaseSync sync = new FirebaseSync();
+            sync.setTypeDonnee(typeDonnee);
+            sync.setIdReference(idReference);
+            sync.setSens(sens);
+            sync.setDateSync(LocalDateTime.now());
+            syncRepository.save(sync);
+        } catch (Exception e) {
+            System.err.println("Erreur lors du logging de la sync : " + e.getMessage());
+        }
     }
     
     /**

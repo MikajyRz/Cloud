@@ -1,5 +1,6 @@
 package com.cloud.web.sync;
 
+import com.cloud.web.sync.dto.SyncResultDto;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -128,5 +129,28 @@ public class SyncController {
     @PreAuthorize("hasRole('MANAGER')")
     public List<FirebaseSync> getSyncHistory(@PathVariable String type) {
         return syncService.getSyncHistory(type.toUpperCase());
+    }
+
+    /**
+     * SYNCHRONISATION BIDIRECTIONNELLE COMPLÈTE
+     * 
+     * Ce endpoint déclenche la synchronisation bidirectionnelle entre Firestore et PostgreSQL
+     * avec les règles suivantes :
+     * 1. Nouvelles données dans Firestore → INSERT dans PostgreSQL
+     * 2. Données existantes avec différences → PostgreSQL prioritaire → UPDATE Firestore
+     * 3. Données uniquement dans PostgreSQL → PUSH vers Firestore
+     */
+    @PostMapping("/synchronize")
+    @PreAuthorize("hasRole('MANAGER')")
+    public SyncResultDto synchronizeBidirectional() {
+        try {
+            return syncService.synchronizeBidirectional();
+        } catch (Exception e) {
+            SyncResultDto errorResult = new SyncResultDto();
+            errorResult.setSuccess(false);
+            errorResult.setMessage("Erreur lors de la synchronisation : " + e.getMessage());
+            errorResult.addError("Exception : " + e.getMessage());
+            return errorResult;
+        }
     }
 }
