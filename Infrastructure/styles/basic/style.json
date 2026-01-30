@@ -1,0 +1,22 @@
+{
+  "version": 8,
+  "name": "Basic OSM",
+  "center": [47.5079, -18.8792],
+  "zoom": 11,
+  "sources": {
+    "osm": {
+      "type": "raster",
+      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      "tileSize": 256,
+      "attribution": "&copy; OpenStreetMap Contributors",
+      "maxzoom": 19
+    }
+  },
+  "layers": [
+    {
+      "id": "osm",
+      "type": "raster",
+      "source": "osm"
+    }
+  ]
+}

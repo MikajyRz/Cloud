@@ -1,6 +1,8 @@
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import AuthLayout from '@/ui/AuthLayout'
 
 export default function LoginPage() {
   const { login, loading } = useAuth()
@@ -25,20 +27,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '64px auto', padding: 16 }}>
-      <h2>Connexion</h2>
-      <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" required />
-        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" type="password" required />
-        <button disabled={loading} type="submit">Se connecter</button>
+    <AuthLayout title="Connexion" subtitle="Accès sécurisé à la plateforme">
+      <form onSubmit={onSubmit} className="stack">
+        <div className="field">
+          <div className="label">Email</div>
+          <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+        </div>
+        <div className="field">
+          <div className="label">Mot de passe</div>
+          <input className="input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+        </div>
+        <button className="btn btn--primary btn--full" disabled={loading} type="submit">
+          {loading ? 'Connexion...' : 'Se connecter'}
+        </button>
       </form>
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      <p>
-        Pas de compte ? <Link to="/register">Créer un compte</Link>
-      </p>
-      <p>
-        <Link to="/">Continuer en visiteur</Link>
-      </p>
-    </div>
+
+      {error ? <div className="alert alert--error" style={{ marginTop: 12 }}>{error}</div> : null}
+
+      <div className="stack" style={{ marginTop: 12 }}>
+        <div className="muted">
+          Pas de compte ? <Link to="/register">Créer un compte</Link>
+        </div>
+        <div className="muted">
+          <Link to={from}>Continuer en visiteur</Link>
+        </div>
+      </div>
+    </AuthLayout>
   )
 }

@@ -1,0 +1,18 @@
+{
+  "options": {
+    "paths": {
+      "root": "",
+      "styles": "styles"
+    }
+  },
+  "styles": {
+    "basic": {
+      "style": "basic/style.json",
+      "serve_rendered": true,
+      "tilejson": {
+        "type": "overlay"
+      }
+    }
+  },
+  "data": {}
+}
