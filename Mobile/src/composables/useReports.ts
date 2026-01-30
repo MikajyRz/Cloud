@@ -13,7 +13,8 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { db } from '@/firebase'
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
+import { db, storage } from '@/firebase'
 import { useAuth } from '@/composables/useAuth'
 
 export type ReportDoc = {
@@ -23,8 +24,9 @@ export type ReportDoc = {
   latitude: number
   longitude: number
   uid: string
-  userEmail?: string
+  userEmail?: string | null
   createdAt?: unknown
+  photoUrl?: string | null
 }
 
 type CreateReportInput = {
@@ -32,6 +34,8 @@ type CreateReportInput = {
   description: string
   latitude: number
   longitude: number
+  photo?: Blob
+  photoName?: string
 }
 
 function getCollectionName() {
@@ -44,8 +48,33 @@ export function useReports(firestore: Firestore = db) {
 
   const createReport = async (input: CreateReportInput) => {
     const u = (await getCurrentUser()) ?? currentUser.value
-    if (!u) throw new Error('Not authenticated')
+    if (!u) throw new Error('Utilisateur non connecté')
 
+    let photoUrl: string | null = null
+
+    // Upload photo si présente
+    if (input.photo && input.photoName) {
+      const fileRef = storageRef(storage, `signalements/${u.uid}/${input.photoName}`)
+
+      const uploadTask = uploadBytesResumable(fileRef, input.photo, {
+        contentType: 'image/jpeg',
+      })
+
+      // On attend la fin de l'upload
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          null,
+          reject,
+          async () => {
+            photoUrl = await getDownloadURL(uploadTask.snapshot.ref)
+            resolve()
+          }
+        )
+      })
+    }
+
+    // Enregistrement dans Firestore
     await addDoc(collectionRef.value, {
       titre: input.titre,
       description: input.description,
@@ -54,10 +83,14 @@ export function useReports(firestore: Firestore = db) {
       uid: u.uid,
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
+      photoUrl,
     })
   }
 
-  const subscribeReports = (opts: { mineOnly: boolean }, cb: (rows: ReportDoc[]) => void): Unsubscribe => {
+  const subscribeReports = (
+    opts: { mineOnly: boolean },
+    cb: (rows: ReportDoc[]) => void
+  ): Unsubscribe => {
     const base = [orderBy('createdAt', 'desc')]
 
     if (opts.mineOnly && !currentUser.value?.uid) {
