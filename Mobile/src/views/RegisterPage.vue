@@ -9,6 +9,12 @@
     <ion-content :fullscreen="true" class="ion-padding">
       <ion-list inset>
         <ion-item>
+          <ion-input v-model="nom" type="text" label="Nom" label-placement="stacked" autocomplete="family-name" />
+        </ion-item>
+        <ion-item>
+          <ion-input v-model="prenom" type="text" label="Prénom" label-placement="stacked" autocomplete="given-name" />
+        </ion-item>
+        <ion-item>
           <ion-input v-model="email" type="email" label="Email" label-placement="stacked" autocomplete="email" />
         </ion-item>
         <ion-item>
@@ -46,6 +52,8 @@ import { useAuth } from '@/composables/useAuth'
 const router = useRouter()
 const { register } = useAuth()
 
+const nom = ref('')
+const prenom = ref('')
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -55,7 +63,7 @@ const onRegister = async () => {
   error.value = null
   loading.value = true
   try {
-    await register(email.value.trim(), password.value)
+    await register(email.value.trim(), password.value, nom.value.trim(), prenom.value.trim())
     await router.replace('/home')
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)

@@ -1,8 +1,8 @@
 package com.cloud.web.config;
 
-import com.cloud.web.user.User;
-import com.cloud.web.user.UserRepository;
-import com.cloud.web.user.UserRole;
+import com.cloud.web.utilisateur.Utilisateur;
+import com.cloud.web.utilisateur.UtilisateurRepository;
+import com.cloud.web.utilisateur.RoleUtilisateur;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -13,24 +13,23 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class BootstrapManagerConfig {
 
     @Bean
-    public CommandLineRunner bootstrapManager(UserRepository userRepository,
+    public CommandLineRunner bootstrapManager(UtilisateurRepository utilisateurRepository,
                                              PasswordEncoder passwordEncoder,
                                              @Value("${auth.manager.email}") String managerEmail,
                                              @Value("${auth.manager.password}") String managerPassword) {
         return args -> {
             String email = managerEmail.toLowerCase();
-            if (userRepository.existsByEmail(email)) {
+            if (utilisateurRepository.existsByEmail(email)) {
                 return;
             }
-            User u = new User();
+            Utilisateur u = new Utilisateur();
             u.setEmail(email);
-            u.setNom("Default");
-            u.setPrenom("Manager");
-            u.setRole(UserRole.MANAGER);
+            u.setNomComplet("Default Manager");
+            u.setRole(RoleUtilisateur.MANAGER);
             u.setMotDePasse(passwordEncoder.encode(managerPassword));
             u.setTentativesEchouees(0);
             u.setEstBloque(false);
-            userRepository.save(u);
+            utilisateurRepository.save(u);
         };
     }
 }

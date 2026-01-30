@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:15
     container_name: cloud_db
     environment:
       POSTGRES_DB: cloud
@@ -38,9 +38,9 @@ services:
   tileserver:
     image: maptiler/tileserver-gl:latest
     container_name: cloud_tileserver
-    command: ["--file", "/data/map.mbtiles"]
+    command: ["--config", "/data/config.json"]
     volumes:
-      - ./Infrastructure/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles:/data/map.mbtiles:ro
+      - ./Infrastructure:/data
     ports:
       - "8081:8080"
 
