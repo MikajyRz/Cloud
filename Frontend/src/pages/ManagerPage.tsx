@@ -2,10 +2,12 @@ import { ChangeEvent, FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import {
+  listEntreprisesApi,
   listManagerReportsApi,
   syncReportsApi,
   unlockUserApi,
   updateManagerReportApi,
+  type EntrepriseResponse,
   type ManagerReportResponse,
   type StatutTravaux,
   type SyncReportsResponse,
@@ -29,6 +31,26 @@ export default function ManagerPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, UpdateReportRequest>>({})
 
+  const [entreprisesLoading, setEntreprisesLoading] = useState(false)
+  const [entreprises, setEntreprises] = useState<EntrepriseResponse[]>([])
+
+  const loadEntreprises = async () => {
+    if (!token) {
+      return
+    }
+
+    setEntreprisesLoading(true)
+    try {
+      const rows = await listEntreprisesApi(token)
+      setEntreprises(rows)
+    } catch {
+      // best-effort: the reports screen can still function without entreprises list
+      setEntreprises([])
+    } finally {
+      setEntreprisesLoading(false)
+    }
+  }
+
   const onSync = async () => {
     setSyncError(null)
     setSyncResult(null)
@@ -42,6 +64,7 @@ export default function ManagerPage() {
     try {
       const res = await syncReportsApi(token)
       setSyncResult(res)
+      await loadReports()
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -58,6 +81,7 @@ export default function ManagerPage() {
 
     setReportsLoading(true)
     try {
+      await loadEntreprises()
       const rows = await listManagerReportsApi(token)
       setReports(rows)
       setEdits({})
@@ -242,7 +266,7 @@ export default function ManagerPage() {
                   <th style={{ textAlign: 'left', padding: 10 }}>Statut</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Surface (m²)</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Budget</th>
-                  <th style={{ textAlign: 'left', padding: 10 }}>Entreprise (UUID)</th>
+                  <th style={{ textAlign: 'left', padding: 10 }}>Entreprise</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Action</th>
                 </tr>
               </thead>
@@ -253,6 +277,8 @@ export default function ManagerPage() {
                   const surfaceVal = e?.surfaceM2 ?? r.surfaceM2 ?? null
                   const budgetVal = e?.budget ?? r.budget ?? null
                   const entVal = e?.idEntreprise ?? r.idEntreprise ?? ''
+                  const missingEntreprise =
+                    entVal && !entreprises.some((en: EntrepriseResponse) => en.id === entVal)
 
                   return (
                     <tr key={r.id} style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
@@ -305,14 +331,24 @@ export default function ManagerPage() {
                       </td>
 
                       <td style={{ padding: 10 }}>
-                        <input
+                        <select
+                          disabled={entreprisesLoading}
                           style={{ width: 260 }}
                           value={entVal}
-                          placeholder="UUID entreprise (vide = null)"
-                          onChange={(ev: ChangeEvent<HTMLInputElement>) =>
-                            setEdit(r.id, { idEntreprise: ev.target.value.trim() || null }, r)
+                          onChange={(ev: ChangeEvent<HTMLSelectElement>) =>
+                            setEdit(r.id, { idEntreprise: ev.target.value || null }, r)
                           }
-                        />
+                        >
+                          <option value="">Aucune</option>
+                          {missingEntreprise ? (
+                            <option value={entVal}>Inconnue ({entVal})</option>
+                          ) : null}
+                          {entreprises.map((en: EntrepriseResponse) => (
+                            <option key={en.id} value={en.id}>
+                              {en.nom}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
                       <td style={{ padding: 10, textAlign: 'right' }}>
