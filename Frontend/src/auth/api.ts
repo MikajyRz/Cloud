@@ -20,6 +20,30 @@ export type LockedUserResponse = {
   tentativesEchouees: number
 }
 
+export type StatutTravaux = 'NOUVEAU' | 'EN_COURS' | 'TERMINE'
+
+export type ManagerReportResponse = {
+  id: string
+  firestoreId: string | null
+  titre: string | null
+  description: string | null
+  latitude: number | null
+  longitude: number | null
+  surfaceM2: number | null
+  budget: number | null
+  statut: StatutTravaux | null
+  dateSignalement: string | null
+  idUtilisateur: string | null
+  idEntreprise: string | null
+}
+
+export type UpdateReportRequest = {
+  surfaceM2: number | null
+  budget: number | null
+  idEntreprise: string | null
+  statut: StatutTravaux | null
+}
+
 export type SyncReportsResponse = {
   fetched: number
   inserted: number
@@ -115,5 +139,24 @@ export async function listLockedUsersApi(token: string): Promise<LockedUserRespo
   return http<LockedUserResponse[]>('/api/manager/locked-users', {
     method: 'GET',
     token,
+  })
+}
+
+export async function listManagerReportsApi(token: string): Promise<ManagerReportResponse[]> {
+  return http<ManagerReportResponse[]>('/api/manager/reports', {
+    method: 'GET',
+    token,
+  })
+}
+
+export async function updateManagerReportApi(
+  token: string,
+  id: string,
+  req: UpdateReportRequest,
+): Promise<ManagerReportResponse> {
+  return http<ManagerReportResponse>(`/api/manager/reports/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(req),
   })
 }
