@@ -4,7 +4,6 @@ import {
   collection,
   type DocumentData,
   onSnapshot,
-  orderBy,
   query,
   type QueryDocumentSnapshot,
   type QuerySnapshot,
@@ -22,7 +21,8 @@ export type ReportDoc = {
   description: string
   latitude: number
   longitude: number
-  uid: string
+  uid?: string
+  userId?: string
   userEmail?: string
   createdAt?: unknown
 }
@@ -57,28 +57,46 @@ export function useReports(firestore: Firestore = db) {
     })
   }
 
-  const subscribeReports = (opts: { mineOnly: boolean }, cb: (rows: ReportDoc[]) => void): Unsubscribe => {
-    const base = [orderBy('createdAt', 'desc')]
+  const subscribeReports = (
+    opts: { mineOnly: boolean },
+    cb: (rows: ReportDoc[]) => void,
+    onError?: (err: unknown) => void,
+  ): Unsubscribe => {
+    const uid = currentUser.value?.uid
+    const email = currentUser.value?.email ?? undefined
 
-    if (opts.mineOnly && !currentUser.value?.uid) {
-      cb([])
-      return () => {}
-    }
+    const q = !opts.mineOnly
+      ? query(collectionRef.value)
+      : uid
+        ? query(collectionRef.value, where('uid', '==', uid))
+        : email
+          ? query(collectionRef.value, where('userEmail', '==', email))
+          : query(collectionRef.value, where('uid', '==', '__no_user__'))
 
-    const q = opts.mineOnly
-      ? query(collectionRef.value, where('uid', '==', currentUser.value?.uid ?? ''), ...base)
-      : query(collectionRef.value, ...base)
+    return onSnapshot(
+      q,
+      (snap: QuerySnapshot<DocumentData>) => {
+        const rawRows: ReportDoc[] = snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => {
+          const data = d.data() as Omit<ReportDoc, 'id'>
+          return {
+            id: d.id,
+            ...data,
+          }
+        })
 
-    return onSnapshot(q, (snap: QuerySnapshot<DocumentData>) => {
-      const rows: ReportDoc[] = snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => {
-        const data = d.data() as Omit<ReportDoc, 'id'>
-        return {
-          id: d.id,
-          ...data,
-        }
-      })
-      cb(rows)
-    })
+        // Sort client-side (avoids composite index). Firestore Timestamp has toMillis().
+        const sorted = [...rawRows].sort((a, b) => {
+          const ta = (a.createdAt as any)?.toMillis?.() ?? 0
+          const tb = (b.createdAt as any)?.toMillis?.() ?? 0
+          return tb - ta
+        })
+
+        cb(sorted)
+      },
+      (err: unknown) => {
+        onError?.(err)
+      },
+    )
   }
 
   return {

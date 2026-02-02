@@ -70,7 +70,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useReports, type ReportDoc } from '@/composables/useReports'
 
 const router = useRouter()
-const { currentUser, logout } = useAuth()
+const { currentUser, getCurrentUser, logout } = useAuth()
 const { createReport, subscribeReports } = useReports()
 
 const mapEl = ref<HTMLDivElement | null>(null)
@@ -79,10 +79,24 @@ let myMarker: L.Marker | null = null
 let reportLayer: L.LayerGroup | null = null
 let unsubReports: (() => void) | null = null
 
+const reportIcon = L.divIcon({
+  className: 'report-marker-icon',
+  html: '<div class="report-marker"><div class="report-marker-halo"></div><div class="report-marker-dot"></div></div>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+})
+
+const locationIcon = L.divIcon({
+  className: 'location-marker-icon',
+  html: '<div class="location-marker"><div class="location-marker-halo"></div><div class="location-marker-dot"></div></div>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+})
+
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const mineOnly = ref(false)
+const mineOnly = ref(true)
 const reports = ref<ReportDoc[]>([])
 
 const isCreateOpen = ref(false)
@@ -141,6 +155,8 @@ const createButtons = computed(() => [
 onMounted(() => {
   if (!mapEl.value || map) return
 
+  const antananarivoBounds = L.latLngBounds(L.latLng(-19.1, 47.3), L.latLng(-18.7, 47.7))
+
   const tileUrl =
     (import.meta.env.VITE_MOBILE_TILE_URL as string | undefined) ??
     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -148,6 +164,9 @@ onMounted(() => {
   map = L.map(mapEl.value, {
     zoomControl: true,
     attributionControl: true,
+    maxBounds: antananarivoBounds,
+    maxBoundsViscosity: 1.0,
+    minZoom: 12,
   }).setView([-18.8792, 47.5079], 13)
 
   L.tileLayer(tileUrl, {
@@ -162,10 +181,19 @@ onMounted(() => {
     isCreateOpen.value = true
   })
 
-  unsubReports = subscribeReports({ mineOnly: mineOnly.value }, (rows) => {
-    reports.value = rows
-    renderReportMarkers()
-  })
+  ;(async () => {
+    await getCurrentUser()
+    unsubReports = subscribeReports(
+      { mineOnly: mineOnly.value },
+      (rows) => {
+        reports.value = rows
+        renderReportMarkers()
+      },
+      (e) => {
+        error.value = e instanceof Error ? e.message : String(e)
+      },
+    )
+  })()
 })
 
 const renderReportMarkers = () => {
@@ -173,7 +201,7 @@ const renderReportMarkers = () => {
   reportLayer.clearLayers()
 
   reports.value.forEach((r) => {
-    const m = L.marker([r.latitude, r.longitude])
+    const m = L.marker([r.latitude, r.longitude], { icon: reportIcon })
     const title = r.titre ? `<strong>${escapeHtml(r.titre)}</strong>` : '<strong>Signalement</strong>'
     const desc = r.description ? `<div>${escapeHtml(r.description)}</div>` : ''
     m.bindPopup(`${title}${desc}`)
@@ -186,10 +214,16 @@ const escapeHtml = (s: string) =>
 
 const resubscribeReports = () => {
   unsubReports?.()
-  unsubReports = subscribeReports({ mineOnly: mineOnly.value }, (rows) => {
-    reports.value = rows
-    renderReportMarkers()
-  })
+  unsubReports = subscribeReports(
+    { mineOnly: mineOnly.value },
+    (rows) => {
+      reports.value = rows
+      renderReportMarkers()
+    },
+    (e) => {
+      error.value = e instanceof Error ? e.message : String(e)
+    },
+  )
 }
 
 const locateMe = async () => {
@@ -199,6 +233,12 @@ const locateMe = async () => {
     const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 })
     const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude)
 
+    const antananarivoBounds = L.latLngBounds(L.latLng(-19.1, 47.3), L.latLng(-18.7, 47.7))
+    if (!antananarivoBounds.contains(latlng)) {
+      error.value = 'Localisation hors Antananarivo'
+      return
+    }
+
     if (map) {
       map.setView(latlng, Math.max(map.getZoom(), 15))
     }
@@ -206,7 +246,7 @@ const locateMe = async () => {
     if (myMarker) {
       myMarker.setLatLng(latlng)
     } else if (map) {
-      myMarker = L.marker(latlng)
+      myMarker = L.marker(latlng, { icon: locationIcon })
       myMarker.addTo(map)
       myMarker.bindPopup('Ma position')
     }
@@ -274,6 +314,100 @@ const mineOnlyProxy = computed({
   bottom: 0;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
+  color: #fff;
+  z-index: 999;
+}
+
+.overlay p {
+  margin: 6px 0;
+}
+
+.overlay ion-button {
+  margin-top: 8px;
+}
+
+:deep(.report-marker-dot) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ff0000;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+}
+
+:deep(.report-marker) {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+:deep(.report-marker-halo) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 0, 0, 0.22);
+  transform: translate(-50%, -50%);
+  animation: reportPulse 1.6s ease-out infinite;
+}
+
+:deep(.location-marker-dot) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+}
+
+:deep(.location-marker) {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+:deep(.location-marker-halo) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.25);
+  transform: translate(-50%, -50%);
+  animation: locationPulse 1.6s ease-out infinite;
+}
+
+@keyframes locationPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 0;
+  }
+}
+
+@keyframes reportPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 0;
+  }
 }
 
 .overlay-item {
