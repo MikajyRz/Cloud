@@ -12,10 +12,19 @@ export type UserMeResponse = {
   role: UserRole
 }
 
+export type LockedUserResponse = {
+  email: string
+  nom: string | null
+  prenom: string | null
+  role: UserRole
+  tentativesEchouees: number
+}
+
 export type SyncReportsResponse = {
   fetched: number
   inserted: number
   updated: number
+  pushed: number
   collection: string
 }
 
@@ -98,6 +107,13 @@ export async function meApi(token: string): Promise<UserMeResponse> {
 export async function syncReportsApi(token: string): Promise<SyncReportsResponse> {
   return http<SyncReportsResponse>('/api/manager/sync-reports', {
     method: 'POST',
+    token,
+  })
+}
+
+export async function listLockedUsersApi(token: string): Promise<LockedUserResponse[]> {
+  return http<LockedUserResponse[]>('/api/manager/locked-users', {
+    method: 'GET',
     token,
   })
 }

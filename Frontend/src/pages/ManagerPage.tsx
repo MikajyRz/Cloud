@@ -78,6 +78,7 @@ export default function ManagerPage() {
         <nav style={{ display: 'grid', gap: 8 }}>
           <Link to="/" style={{ textDecoration: 'none' }}>Carte</Link>
           <Link to="/manager" style={{ textDecoration: 'none' }}>Panneau manager</Link>
+          <Link to="/manager/locked-users" style={{ textDecoration: 'none' }}>Utilisateurs bloqués</Link>
         </nav>
 
         <div style={{ marginTop: 'auto', display: 'grid', gap: 8 }}>
@@ -126,7 +127,9 @@ export default function ManagerPage() {
         {syncResult ? (
           <div style={{ color: 'green' }}>
             Import Firestore <code>{syncResult.collection}</code> → Postgres :
-            fetched={syncResult.fetched}, inserted={syncResult.inserted}, updated={syncResult.updated}
+            fetched={syncResult.fetched}, inserted={syncResult.inserted}, updated={syncResult.updated}, pushed={
+              syncResult.pushed
+            }
           </div>
         ) : null}
       </section>
