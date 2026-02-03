@@ -126,8 +126,9 @@ import {
   listOutline,
   createOutline,
   documentTextOutline,
-  micOutline,
+  megaphoneOutline,
   navigateOutline,
+  notificationsOutline,
 } from 'ionicons/icons'
 import { Geolocation } from '@capacitor/geolocation'
 import { useAuth } from '@/composables/useAuth'
@@ -149,15 +150,16 @@ const reportIcon = L.divIcon({
     <div class="radar-container">
       <div class="radar-ping"></div>
       <div class="radar-ping second"></div>
-      <div class="dictaphone-marker">
+      <div class="radar-ping third"></div>
+      <div class="megaphone-marker">
         <div class="marker-inner">
-          <i class="mic-icon"></i>
+          <i class="megaphone-icon"></i>
         </div>
       </div>
     </div>
   `,
-  iconSize: [50, 50],
-  iconAnchor: [25, 25],
+  iconSize: [70, 70],
+  iconAnchor: [35, 35],
 })
 
 const locationIcon = L.divIcon({
@@ -168,8 +170,8 @@ const locationIcon = L.divIcon({
       <div class="location-dot"></div>
     </div>
   `,
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
+  iconSize: [60, 60],
+  iconAnchor: [30, 30],
 })
 
 const loading = ref(false)
@@ -401,105 +403,169 @@ const mineOnlyProxy = computed({
 </script>
 
 <style scoped>
-.ion-content {
-  position: relative;
-}
-
 .map {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   z-index: 1;
-  right: 0;
-  bottom: 0;
 }
 
-.overlay-container {
+/* Futuristic Header */
+ion-header {
+  background: transparent;
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16px;
-  z-index: 999;
-  pointer-events: none;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+  padding: 10px 16px;
 }
 
-.overlay-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+ion-toolbar {
+  --background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: 20px;
-  padding: 12px 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  pointer-events: auto;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --color: #0f172a;
+  overflow: hidden;
 }
 
 .header-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 1.1rem;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #1e40af;
+}
+
+.header-title ion-icon {
+  font-size: 24px;
+  color: #2563eb;
 }
 
 .header-subtitle {
-  font-size: 0.75rem;
-  font-weight: 400;
-  opacity: 0.9;
-  margin-top: -2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+ion-buttons[slot="end"] ion-button {
+  --color: #1e40af;
+}
+
+/* Futuristic Bottom Section */
+.overlay-container {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.overlay-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  border-radius: 24px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 12px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .user-icon {
-  font-size: 32px;
-  color: var(--ion-color-primary);
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .user-details {
-  display: flex;
-  flex-direction: column;
+  flex: 1;
 }
 
 .user-label {
-  font-size: 0.7rem;
+  display: block;
+  font-size: 0.65rem;
+  color: #888;
   text-transform: uppercase;
+  font-weight: 700;
   letter-spacing: 0.5px;
-  color: #666;
 }
 
 .user-email {
-  font-size: 0.9rem;
+  display: block;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #333;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toggle-item {
+  background: rgba(0, 0, 0, 0.03);
   --background: transparent;
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  margin-bottom: 4px;
+  --padding-start: 16px;
+  --inner-padding-end: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  margin: 0;
 }
 
 .toggle-item ion-label {
-  font-weight: 500;
-  font-size: 0.95rem;
-  color: #333;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+ion-toggle {
+  --handle-background: white;
+  --handle-background-checked: white;
+  --background: #ddd;
+  --background-checked: #3b82f6;
 }
 
 .fab-locate {
-  margin-bottom: 110px; /* Espace pour ne pas chevaucher la carte overlay */
-  margin-right: 8px;
+  bottom: 180px;
+  right: 16px;
+}
+
+ion-fab-button {
+  --background: #3b82f6;
+  --box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+ion-fab-button[color="primary"] {
+  --background: #10b981;
+  --box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+  animation: pulse-fab 2s infinite;
+}
+
+@keyframes pulse-fab {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 .error-text {
@@ -511,8 +577,8 @@ const mineOnlyProxy = computed({
 /* Custom Marker Styles */
 :deep(.radar-container) {
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -522,48 +588,51 @@ const mineOnlyProxy = computed({
   position: absolute;
   width: 100%;
   height: 100%;
-  border: 2px solid #ff4757;
+  border: 3px solid #ff4757;
   border-radius: 50%;
   opacity: 0;
-  animation: radar-ping 2s ease-out infinite;
+  animation: radar-ping 3s ease-out infinite;
 }
 
 :deep(.radar-ping.second) {
   animation-delay: 1s;
 }
 
+:deep(.radar-ping.third) {
+  animation-delay: 2s;
+}
+
 @keyframes radar-ping {
   0% {
-    transform: scale(0.3);
-    opacity: 0.8;
+    transform: scale(0.2);
+    opacity: 0.9;
   }
   100% {
-    transform: scale(1.5);
+    transform: scale(2);
     opacity: 0;
   }
 }
 
-:deep(.dictaphone-marker) {
-  width: 32px;
-  height: 32px;
-  background: #ff4757;
+:deep(.megaphone-marker) {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #ff4757, #ff6b81);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid white;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border: 2.5px solid white;
+  box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
   z-index: 5;
-  animation: vibrate 0.5s linear infinite;
+  animation: vibrate-large 0.4s linear infinite;
 }
 
-@keyframes vibrate {
-  0% { transform: translate(0); }
-  20% { transform: translate(-1px, 1px); }
-  40% { transform: translate(-1px, -1px); }
-  60% { transform: translate(1px, 1px); }
-  80% { transform: translate(1px, -1px); }
-  100% { transform: translate(0); }
+@keyframes vibrate-large {
+  0% { transform: translate(0) scale(1); }
+  25% { transform: translate(-2px, 2px) scale(1.05); }
+  50% { transform: translate(2px, -2px) scale(1); }
+  75% { transform: translate(-2px, -2px) scale(1.05); }
+  100% { transform: translate(0) scale(1); }
 }
 
 :deep(.marker-inner) {
@@ -573,31 +642,32 @@ const mineOnlyProxy = computed({
   justify-content: center;
 }
 
-:deep(.mic-icon) {
-  width: 16px;
-  height: 16px;
+:deep(.megaphone-icon) {
+  width: 26px;
+  height: 26px;
   background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M192 352h128c17.67 0 32-14.33 32-32V128c0-17.67-14.33-32-32-32H192c-17.67 0-32 14.33-32 32v192c0 17.67 14.33 32 32 32z'/%3E%3Cpath d='M384 192v128c0 70.69-57.31 128-128 128s-128-57.31-128-128V192h-32v128c0 82.5 62.33 150.77 144 159.1V512h32v-32.9c81.67-8.33 144-76.6 144-159.1V192h-32z'/%3E%3C/svg%3E") no-repeat center;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M192 352h128c17.67 0 32-14.33 32-32V128c0-17.67-14.33-32-32-32H192c-17.67 0-32 14.33-32 32v192c0 17.67 14.33 32 32 32z'/%3E%3Cpath d='M384 192v128c0 70.69-57.31 128-128 128s-128-57.31-128-128V192h-32v128c0 82.5 62.33 150.77 144 159.1V512h32v-32.9c81.67-8.33 144-76.6 144-159.1V192h-32z'/%3E%3C/svg%3E") no-repeat center;
+  /* Nouveau logo plus pro : Triangle d'alerte moderne */
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L1 21h22L12 2zm0 15c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-4V8h2v5h-2z'/%3E%3C/svg%3E") no-repeat center;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L1 21h22L12 2zm0 15c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-4V8h2v5h-2z'/%3E%3C/svg%3E") no-repeat center;
 }
 
 /* Location Marker */
 :deep(.location-pulse) {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 :deep(.location-dot) {
-  width: 14px;
-  height: 14px;
+  width: 22px;
+  height: 22px;
   background: #3b82f6;
-  border: 2.5px solid white;
+  border: 3.5px solid white;
   border-radius: 50%;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
   z-index: 2;
 }
 
@@ -605,7 +675,7 @@ const mineOnlyProxy = computed({
   position: absolute;
   width: 100%;
   height: 100%;
-  border: 4px solid #3b82f6;
+  border: 6px solid #3b82f6;
   border-radius: 50%;
   opacity: 0;
   animation: pulse 2s ease-out infinite;
