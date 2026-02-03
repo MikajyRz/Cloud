@@ -25,6 +25,7 @@ export type ReportDoc = {
   userId?: string
   userEmail?: string
   createdAt?: unknown
+  imageUrls?: string[]
 }
 
 type CreateReportInput = {
@@ -32,6 +33,7 @@ type CreateReportInput = {
   description: string
   latitude: number
   longitude: number
+  imageUrls: string[]
 }
 
 function getCollectionName() {
@@ -54,6 +56,7 @@ export function useReports(firestore: Firestore = db) {
       uid: u.uid,
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
+      imageUrls: input.imageUrls,
     })
   }
 

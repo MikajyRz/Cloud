@@ -82,6 +82,22 @@
                   />
                 </ion-item>
               </div>
+
+              <div class="modal-input-wrapper image-upload-wrapper">
+                <input type="file" @change="onFileChange" accept="image/*" ref="fileInput" style="display: none" multiple />
+                <ion-button fill="clear" @click="triggerFileInput">
+                  <ion-icon slot="start" :icon="cameraIcon" />
+                  Ajouter une image
+                </ion-button>
+                <div v-if="newReportImagePreviews.length > 0" class="image-previews-container">
+                  <div v-for="(preview, index) in newReportImagePreviews" :key="index" class="image-preview">
+                    <img :src="preview" />
+                    <ion-button fill="clear" color="danger" @click="removeImage(index)" class="remove-image-btn">
+                      <ion-icon slot="icon-only" :icon="closeIcon" />
+                    </ion-button>
+                  </div>
+                </div>
+              </div>
             </ion-list>
           </div>
 
@@ -136,6 +152,8 @@ import {
   createOutline,
   documentTextOutline,
   navigateOutline,
+  camera as cameraIcon,
+  closeCircleOutline as closeIcon,
 } from 'ionicons/icons'
 import { Geolocation } from '@capacitor/geolocation'
 import { useAuth } from '@/composables/useAuth'
@@ -188,25 +206,48 @@ const isTracking = ref(false)
 
 const mineOnly = ref(true)
 const reports = ref<ReportDoc[]>([])
-
 const isCreateOpen = ref(false)
 const createLatLng = ref<L.LatLng | null>(null)
 const newReportTitle = ref('')
 const newReportDescription = ref('')
+const newReportImagePreviews = ref<string[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const userEmail = computed(() => currentUser.value?.email ?? null)
 const reportsCount = computed(() => reports.value.length)
 
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const onFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    try {
+      const promises = Array.from(target.files).map(file => imageToBase64(file));
+      const base64Strings = await Promise.all(promises);
+      newReportImagePreviews.value.push(...base64Strings.filter(s => s !== null) as string[]);
+    } catch (e) {
+      console.error('Error converting images to Base64:', e)
+      error.value = 'Erreur lors du traitement des images.'
+    }
+  }
+}
+
+const removeImage = (index: number) => {
+  newReportImagePreviews.value.splice(index, 1)
+}
+
 const handleCreateReport = async () => {
   if (!createLatLng.value) return
-  
+
   console.log('Données du signalement:', {
     titre: newReportTitle.value,
     description: newReportDescription.value,
     lat: createLatLng.value.lat,
-    lng: createLatLng.value.lng
+    lng: createLatLng.value.lng,
   })
-  
+
   error.value = null
   loading.value = true
   try {
@@ -215,10 +256,9 @@ const handleCreateReport = async () => {
       description: newReportDescription.value.trim(),
       latitude: createLatLng.value.lat,
       longitude: createLatLng.value.lng,
+      imageUrls: newReportImagePreviews.value,
     })
     isCreateOpen.value = false
-    newReportTitle.value = ''
-    newReportDescription.value = ''
   } catch (e) {
     console.error('Erreur lors de la création:', e)
     error.value = e instanceof Error ? e.message : String(e)
@@ -231,8 +271,52 @@ watch(isCreateOpen, (isOpen) => {
   if (!isOpen) {
     newReportTitle.value = ''
     newReportDescription.value = ''
+    newReportImagePreviews.value = []
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
   }
 })
+
+const imageToBase64 = (file: File): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = () => {
+      const img = new Image()
+      img.src = reader.result as string
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 800
+        const MAX_HEIGHT = 800
+        let { width, height } = img
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width
+            width = MAX_WIDTH
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height
+            height = MAX_HEIGHT
+          }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          return reject(new Error('Could not get canvas context'))
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        resolve(dataUrl)
+      }
+      img.onerror = (error) => reject(error)
+    }
+    reader.onerror = (error) => reject(error)
+  })
+}
 
 onMounted(() => {
   console.log('Initialisation de la carte...')
@@ -554,6 +638,38 @@ const mineOnlyProxy = computed({
 .textarea-wrapper ion-item {
   --padding-start: 48px;
   --padding-top: 12px;
+}
+
+.image-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.image-previews-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 16px;
+  margin-top: 16px;
+  padding-bottom: 8px; /* For scrollbar */
+}
+
+.image-preview {
+  position: relative;
+  flex-shrink: 0; /* Prevent images from shrinking */
+}
+
+.image-preview img {
+  width: 150px; /* Fixed width for consistency */
+  height: 150px; /* Fixed height for consistency */
+  object-fit: cover; /* Crop image to fit */
+  border-radius: 8px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
 }
 
 .modal-actions {
