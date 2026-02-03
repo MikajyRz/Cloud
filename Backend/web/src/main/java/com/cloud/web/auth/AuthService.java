@@ -7,6 +7,9 @@ import com.cloud.web.security.JwtService;
 import com.cloud.web.utilisateur.Utilisateur;
 import com.cloud.web.utilisateur.UtilisateurRepository;
 import com.cloud.web.utilisateur.RoleUtilisateur;
+import com.cloud.web.sync.dto.UtilisateurSyncDto;
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -73,6 +77,19 @@ public class AuthService {
             utilisateur.setTentativesEchouees(attempts);
             if (attempts >= maxLoginAttempts) {
                 utilisateur.setEstBloque(true);
+                
+                // Synchroniser le blocage vers Firestore
+                try {
+                    Firestore firestore = FirestoreClient.getFirestore();
+                    String docId = utilisateur.getEmail().replace(".", "_");
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("estBloque", true);
+                    updates.put("tentativesEchouees", attempts);
+                    firestore.collection("utilisateurs").document(docId).update(updates);
+                    System.out.println("⚠️ Utilisateur bloqué et synchronisé vers Firestore: " + utilisateur.getEmail());
+                } catch (Exception e) {
+                    System.err.println("⚠️ Erreur sync Firestore blocage: " + e.getMessage());
+                }
             }
             utilisateurRepository.save(utilisateur);
             throw new IllegalArgumentException("Identifiants invalides");
@@ -103,5 +120,26 @@ public class AuthService {
         utilisateur.setTentativesEchouees(0);
         utilisateur.setEstBloque(false);
         utilisateurRepository.save(utilisateur);
+        
+        // Synchroniser vers Firestore
+        try {
+            Firestore firestore = FirestoreClient.getFirestore();
+            UtilisateurSyncDto dto = new UtilisateurSyncDto(utilisateur);
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("nom", dto.getNom() != null ? dto.getNom() : "");
+            userData.put("prenom", dto.getPrenom() != null ? dto.getPrenom() : "");
+            userData.put("email", dto.getEmail());
+            userData.put("motDePasse", dto.getMotDePasse() != null ? dto.getMotDePasse() : "");
+            userData.put("role", dto.getRole());
+            userData.put("telephone", dto.getTelephone() != null ? dto.getTelephone() : "");
+            userData.put("estBloque", false);
+            userData.put("tentativesEchouees", 0);
+            
+            String docId = utilisateur.getEmail().replace(".", "_");
+            firestore.collection("utilisateurs").document(docId).set(userData);
+            System.out.println("✅ Utilisateur débloqué et synchronisé vers Firestore: " + email);
+        } catch (Exception e) {
+            System.err.println("⚠️ Erreur sync Firestore unlock: " + e.getMessage());
+        }
     }
 }

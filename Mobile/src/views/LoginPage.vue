@@ -1,27 +1,60 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Connexion</ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <ion-content :fullscreen="true" class="login-page-content">
+      <div class="background-decor">
+        <div class="circle circle-1"></div>
+        <div class="circle circle-2"></div>
+      </div>
 
-    <ion-content :fullscreen="true" class="ion-padding">
-      <ion-list inset>
-        <ion-item>
-          <ion-input v-model="email" type="email" label="Email" label-placement="stacked" autocomplete="email" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="password" type="password" label="Mot de passe" label-placement="stacked" autocomplete="current-password" />
-        </ion-item>
-      </ion-list>
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-header">
+            <div class="logo-circle">
+              <ion-icon :icon="personCircleOutline" />
+            </div>
+            <h1>Identification</h1>
+            <p>Entrez vos informations pour accéder à l'application</p>
+          </div>
 
-      <ion-button expand="block" :disabled="loading" @click="onLogin">Se connecter</ion-button>
-      <ion-button expand="block" fill="clear" router-link="/register">Créer un compte</ion-button>
+          <div class="login-form">
+            <div class="input-wrapper">
+              <ion-icon :icon="mailOutline" class="input-icon" />
+              <ion-item lines="none">
+                <ion-input v-model="email" type="email" placeholder="Email" autocomplete="email" />
+              </ion-item>
+            </div>
 
-      <ion-text color="danger" v-if="error">
-        <p>{{ error }}</p>
-      </ion-text>
+            <div class="input-wrapper">
+              <ion-icon :icon="personCircleOutline" class="input-icon" />
+              <ion-item lines="none">
+                <ion-input
+                  v-model="nom"
+                  type="text"
+                  placeholder="Votre nom"
+                  autocomplete="name"
+                />
+              </ion-item>
+            </div>
+
+            <ion-button expand="block" class="login-btn" :disabled="loading" @click="onLogin">
+              <ion-spinner v-if="loading" name="crescent" />
+              <span v-else>Continuer</span>
+            </ion-button>
+
+            <div class="register-link">
+              <ion-text color="medium">Les données sont stockées localement et dans Firestore</ion-text>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ion-alert
+        :is-open="!!error"
+        header="Erreur"
+        :message="error || ''"
+        :buttons="['OK']"
+        @didDismiss="error = null"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -31,31 +64,47 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonList,
   IonItem,
   IonInput,
   IonButton,
   IonText,
+  IonIcon,
+  IonSpinner,
+  IonCheckbox,
+  IonLabel,
+  IonAlert,
 } from '@ionic/vue'
+import {
+  mailOutline,
+  lockClosedOutline,
+  personCircleOutline,
+  logoApple,
+  logoGoogle,
+  logoFacebook,
+  eyeOutline,
+  eyeOffOutline,
+} from 'ionicons/icons'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const { login } = useAuth()
 
 const email = ref('')
-const password = ref('')
+const nom = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
 const onLogin = async () => {
+  if (!email.value || !nom.value) {
+    error.value = "Veuillez remplir tous les champs"
+    return
+  }
   error.value = null
   loading.value = true
   try {
-    await login(email.value.trim(), password.value)
+    await login(email.value.trim(), nom.value.trim())
     await router.replace('/home')
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -64,3 +113,233 @@ const onLogin = async () => {
   }
 }
 </script>
+
+<style scoped>
+.login-page-content {
+  --background: #f4f7f6;
+  position: relative;
+}
+
+.background-decor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.4;
+}
+
+.circle-1 {
+  width: 300px;
+  height: 300px;
+  background: #3b82f6;
+  top: -100px;
+  right: -50px;
+}
+
+.circle-2 {
+  width: 250px;
+  height: 250px;
+  background: #60a5fa;
+  bottom: -50px;
+  left: -50px;
+}
+
+.login-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  padding: 32px 24px;
+  border-radius: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo-circle {
+  width: 64px;
+  height: 64px;
+  background: #3b82f6;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: white;
+  font-size: 32px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #1a1a1a;
+}
+
+.login-header p {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.social-login-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.social-box {
+  width: 50px;
+  height: 50px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.social-box:active {
+  background: #f5f5f5;
+  transform: scale(0.95);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  color: #999;
+  font-size: 14px;
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background: #eee;
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+.input-wrapper {
+  background: #f9f9f9;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.input-wrapper:focus-within {
+  background: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.input-icon {
+  font-size: 20px;
+  color: #666;
+}
+
+ion-item {
+  --background: transparent;
+  --padding-start: 12px;
+  --inner-padding-end: 0;
+  --color: #000;
+  width: 100%;
+}
+
+ion-input {
+  --padding-start: 0;
+  --color: #000;
+  font-size: 15px;
+}
+
+.eye-button {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0;
+  color: #999;
+}
+
+.options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.remember-me {
+  --padding-start: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.remember-me ion-checkbox {
+  --size: 18px;
+  --border-radius: 4px;
+  margin-right: 8px;
+}
+
+.forgot-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  font-size: 14px;
+  color: #3b82f6;
+  text-transform: none;
+}
+
+.login-btn {
+  --border-radius: 12px;
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+  margin-bottom: 24px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.register-link {
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+}
+
+.register-link a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.register-link ion-text {
+  color: #333;
+  font-size: 12px;
+}
+</style>

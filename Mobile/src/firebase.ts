@@ -1,12 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore, type Firestore } from 'firebase/firestore'
-import {
-  getAuth,
-  indexedDBLocalPersistence,
-  setPersistence,
-  type Auth,
-} from 'firebase/auth'
 
+// Configuration Firestore uniquement (pas d'authentification Firebase)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
@@ -18,9 +13,5 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
-export const auth: Auth = getAuth(app)
+// Uniquement Firestore Database (accès direct, pas d'auth Firebase)
 export const db: Firestore = getFirestore(app)
-
-setPersistence(auth, indexedDBLocalPersistence).catch(() => {
-  // ignore
-})

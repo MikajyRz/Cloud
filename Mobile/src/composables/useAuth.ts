@@ -1,157 +1,108 @@
 import { ref } from 'vue'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { Preferences } from '@capacitor/preferences'
 import { db } from '@/firebase'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/firebase'
+import { doc, getDoc } from 'firebase/firestore'
 
-const currentUser = ref<any | null>(null)
-const initialized = ref(false)
-const authToken = ref<string | null>(localStorage.getItem('auth_token'))
-
-interface UtilisateurFirestore {
+// Utilisateur local (stocké dans le device, pas d'auth Firebase)
+type LocalUser = {
   email: string
-  nom?: string
-  prenom?: string
-  role?: string
-  telephone?: string
+  nom: string
+  deviceId: string
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8180'
+const currentUser = ref<LocalUser | null>(null)
+const initialized = ref(false)
+
+// Charger l'utilisateur local depuis le stockage du device
+async function loadLocalUser(): Promise<LocalUser | null> {
+  const { value } = await Preferences.get({ key: 'local_user' })
+  if (value) {
+    return JSON.parse(value) as LocalUser
+  }
+  return null
+}
+
+// Sauvegarder l'utilisateur local
+async function saveLocalUser(user: LocalUser): Promise<void> {
+  await Preferences.set({ key: 'local_user', value: JSON.stringify(user) })
+}
+
+// Générer un ID unique pour le device
+function generateDeviceId(): string {
+  return 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+}
 
 export function useAuth() {
-  const isAuthenticated = () => !!authToken.value
+  const isAuthenticated = () => !!currentUser.value
 
-  const login = async (email: string, password: string) => {
+  // "Login" = créer/récupérer un profil local
+  const login = async (email: string, nom: string) => {
+    // Vérifier si l'utilisateur est bloqué dans Firestore
     try {
-      // Appeler l'API backend pour se connecter
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Erreur login:', errorText)
-        throw new Error(errorText || 'Email ou mot de passe incorrect')
+      const docId = email.replace('.', '_')
+      const userDoc = await getDoc(doc(db, 'utilisateurs', docId))
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        if (userData.estBloque === true) {
+          throw new Error('Votre compte est bloqué. Contactez un administrateur.')
+        }
       }
-
-      const data = await response.json()
-      authToken.value = data.token
-      localStorage.setItem('auth_token', data.token)
-
-      // Récupérer les informations de l'utilisateur
-      const meResponse = await fetch(`${API_URL}/api/utilisateurs/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.token}`,
-        },
-      })
-
-      if (meResponse.ok) {
-        currentUser.value = await meResponse.json()
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('bloqué')) {
+        throw err
       }
-
-      initialized.value = true
-      return currentUser.value
-    } catch (error: any) {
-      console.error('Erreur complète:', error)
-      throw new Error(error.message || 'Erreur de connexion')
+      // Si Firestore est inaccessible, continuer (mode offline)
     }
+    
+    let user = await loadLocalUser()
+    
+    if (!user) {
+      user = {
+        email,
+        nom,
+        deviceId: generateDeviceId(),
+      }
+      await saveLocalUser(user)
+    } else {
+      // Mettre à jour les infos si changées
+      user.email = email
+      user.nom = nom
+      await saveLocalUser(user)
+    }
+    
+    currentUser.value = user
+    initialized.value = true
+    return user
   }
 
-  const register = async (email: string, password: string, nom?: string, prenom?: string) => {
-    try {
-      // Créer le nom complet
-      const fullName = `${prenom || ''} ${nom || ''}`.trim()
-
-      // Appeler l'API backend pour l'inscription
-      const response = await fetch(`${API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          fullName: fullName || email 
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || 'Erreur lors de l\'inscription')
-      }
-
-      // Après l'inscription, se connecter automatiquement
-      return await login(email, password)
-    } catch (error: any) {
-      throw new Error(error.message || 'Erreur lors de l\'inscription')
-    }
+  // Pas de register séparé, même comportement que login
+  const register = async (email: string, nom: string) => {
+    return login(email, nom)
   }
 
   const logout = async () => {
-    authToken.value = null
+    // On ne supprime pas le profil local, juste on le déconnecte en mémoire
     currentUser.value = null
-    localStorage.removeItem('auth_token')
   }
 
   const getCurrentUser = async () => {
-    if (!authToken.value) {
+    if (!initialized.value) {
+      currentUser.value = await loadLocalUser()
       initialized.value = true
-      return null
     }
-
-    if (currentUser.value) {
-      return currentUser.value
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/utilisateurs/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken.value}`,
-        },
-      })
-
-      if (response.ok) {
-        currentUser.value = await response.json()
-      } else {
-        // Token invalide, déconnexion
-        await logout()
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
-      await logout()
-    }
-
-    initialized.value = true
     return currentUser.value
-  }
-
-  const getUserFromFirestore = async (email: string): Promise<UtilisateurFirestore | null> => {
-    try {
-      const emailKey = email.replace(/\./g, '_')
-      const userDocRef = doc(db, 'utilisateurs', emailKey)
-      const userDoc = await getDoc(userDocRef)
-      
-      if (userDoc.exists()) {
-        return userDoc.data() as UtilisateurFirestore
-      }
-      return null
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
-      return null
-    }
   }
 
   return {
     currentUser,
     initialized,
-    authToken,
     isAuthenticated,
     login,
     register,
     logout,
     getCurrentUser,
-    getUserFromFirestore,
   }
 }
