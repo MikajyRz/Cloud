@@ -64,14 +64,22 @@
               <div class="modal-input-wrapper">
                 <ion-icon :icon="createOutline" class="input-icon" />
                 <ion-item>
-                  <ion-input v-model="newReportTitle" placeholder="Titre du signalement" label-placement="stacked" />
+                  <ion-input
+                    v-model="newReportTitle"
+                    placeholder="Titre du signalement"
+                    label-placement="stacked"
+                  />
                 </ion-item>
               </div>
 
               <div class="modal-input-wrapper textarea-wrapper">
                 <ion-icon :icon="documentTextOutline" class="input-icon" />
                 <ion-item>
-                  <ion-textarea v-model="newReportDescription" placeholder="Description détaillée..." :rows="4" />
+                  <ion-textarea
+                    v-model="newReportDescription"
+                    placeholder="Description détaillée..."
+                    :rows="4"
+                  />
                 </ion-item>
               </div>
             </ion-list>
@@ -81,7 +89,7 @@
             <ion-button expand="block" fill="clear" color="medium" @click="isCreateOpen = false">
               Annuler
             </ion-button>
-            <ion-button expand="block" color="primary" :disabled="loading" @click="handleCreateReport">
+            <ion-button expand="block" color="primary" :disabled="loading || !newReportTitle.trim()" @click="handleCreateReport">
               <ion-spinner v-if="loading" name="crescent" />
               <span v-else>Enregistrer le signalement</span>
             </ion-button>
@@ -95,7 +103,7 @@
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   IonPage,
@@ -113,9 +121,10 @@ import {
   IonFab,
   IonFabButton,
   IonModal,
+  IonInput,
   IonTextarea,
   IonSpinner,
-  IonAlert,
+  IonList,
   onIonViewDidEnter,
 } from '@ionic/vue'
 import {
@@ -126,9 +135,7 @@ import {
   listOutline,
   createOutline,
   documentTextOutline,
-  megaphoneOutline,
   navigateOutline,
-  notificationsOutline,
 } from 'ionicons/icons'
 import { Geolocation } from '@capacitor/geolocation'
 import { useAuth } from '@/composables/useAuth'
@@ -192,6 +199,14 @@ const reportsCount = computed(() => reports.value.length)
 
 const handleCreateReport = async () => {
   if (!createLatLng.value) return
+  
+  console.log('Données du signalement:', {
+    titre: newReportTitle.value,
+    description: newReportDescription.value,
+    lat: createLatLng.value.lat,
+    lng: createLatLng.value.lng
+  })
+  
   error.value = null
   loading.value = true
   try {
@@ -205,15 +220,22 @@ const handleCreateReport = async () => {
     newReportTitle.value = ''
     newReportDescription.value = ''
   } catch (e) {
+    console.error('Erreur lors de la création:', e)
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
     loading.value = false
   }
 }
 
+watch(isCreateOpen, (isOpen) => {
+  if (!isOpen) {
+    newReportTitle.value = ''
+    newReportDescription.value = ''
+  }
+})
+
 onMounted(() => {
   console.log('Initialisation de la carte...')
-  console.log('mapEl.value:', mapEl.value)
   
   if (!mapEl.value) {
     console.error('Erreur: mapEl est null')
@@ -406,383 +428,266 @@ const mineOnlyProxy = computed({
 .map {
   width: 100%;
   height: 100%;
-  z-index: 1;
 }
 
-/* Futuristic Header */
-ion-header {
-  background: transparent;
-  position: absolute;
-  top: 0;
-  width: 100%;
-  z-index: 10;
-  padding: 10px 16px;
-}
-
-ion-toolbar {
-  --background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-  --color: #0f172a;
-  overflow: hidden;
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: #1e40af;
-}
-
-.header-title ion-icon {
-  font-size: 24px;
-  color: #2563eb;
-}
-
-.header-subtitle {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 2px;
-}
-
-ion-buttons[slot="end"] ion-button {
-  --color: #1e40af;
-}
-
-/* Futuristic Bottom Section */
 .overlay-container {
   position: absolute;
-  bottom: 24px;
-  left: 16px;
-  right: 16px;
-  z-index: 10;
+  top: 16px;
+  left: 0;
+  right: 0;
+  padding: 0 16px;
+  z-index: 1000;
   pointer-events: none;
 }
 
 .overlay-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(25px) saturate(200%);
-  -webkit-backdrop-filter: blur(25px) saturate(200%);
-  border-radius: 24px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .user-icon {
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 22px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  font-size: 40px;
+  margin-right: 12px;
+  color: var(--ion-color-primary);
 }
 
 .user-details {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-label {
-  display: block;
-  font-size: 0.65rem;
-  color: #888;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
 }
 
 .user-email {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
 }
 
 .toggle-item {
-  background: rgba(0, 0, 0, 0.03);
-  --background: transparent;
-  --padding-start: 16px;
-  --inner-padding-end: 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  margin: 0;
-}
-
-.toggle-item ion-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #444;
-}
-
-ion-toggle {
-  --handle-background: white;
-  --handle-background-checked: white;
-  --background: #ddd;
-  --background-checked: #3b82f6;
-}
-
-.fab-locate {
-  bottom: 180px;
-  right: 16px;
-}
-
-ion-fab-button {
-  --background: #3b82f6;
-  --box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
-}
-
-ion-fab-button[color="primary"] {
-  --background: #10b981;
-  --box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
-  animation: pulse-fab 2s infinite;
-}
-
-@keyframes pulse-fab {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 8px;
 }
 
 .error-text {
-  font-size: 0.85rem;
+  font-size: 14px;
   margin-top: 8px;
   text-align: center;
 }
 
-/* Custom Marker Styles */
+.fab-locate {
+  margin-bottom: 80px;
+  margin-right: 16px;
+}
+
+.modal-content {
+  border-radius: 16px 16px 0 0;
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.modal-handle {
+  width: 40px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.modal-coords {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.form-scroll-area {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.form-list {
+  background: transparent;
+}
+
+.modal-input-wrapper {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  color: var(--ion-color-primary);
+}
+
+.modal-input-wrapper ion-item {
+  --padding-start: 48px;
+  --background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.textarea-wrapper .input-icon {
+  top: 24px;
+  transform: none;
+}
+
+.textarea-wrapper ion-item {
+  --padding-start: 48px;
+  --padding-top: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.modal-actions ion-button {
+  flex: 1;
+  margin: 0;
+}
+
+:deep(.report-marker-icon) {
+  background: transparent;
+  border: none;
+}
+
 :deep(.radar-container) {
   position: relative;
   width: 70px;
   height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 :deep(.radar-ping) {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 3px solid #ff4757;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
   border-radius: 50%;
-  opacity: 0;
-  animation: radar-ping 3s ease-out infinite;
+  border: 2px solid var(--ion-color-primary);
+  animation: ping 2s infinite linear;
 }
 
 :deep(.radar-ping.second) {
-  animation-delay: 1s;
+  animation-delay: 0.66s;
 }
 
 :deep(.radar-ping.third) {
-  animation-delay: 2s;
-}
-
-@keyframes radar-ping {
-  0% {
-    transform: scale(0.2);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
+  animation-delay: 1.33s;
 }
 
 :deep(.megaphone-marker) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #ff4757, #ff6b81);
+  background: var(--ion-color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2.5px solid white;
-  box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
-  z-index: 5;
-  animation: vibrate-large 0.4s linear infinite;
-}
-
-@keyframes vibrate-large {
-  0% { transform: translate(0) scale(1); }
-  25% { transform: translate(-2px, 2px) scale(1.05); }
-  50% { transform: translate(2px, -2px) scale(1); }
-  75% { transform: translate(-2px, -2px) scale(1.05); }
-  100% { transform: translate(0) scale(1); }
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
 }
 
 :deep(.marker-inner) {
-  color: white;
+  width: 30px;
+  height: 30px;
+  background: white;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 :deep(.megaphone-icon) {
-  width: 26px;
-  height: 26px;
-  background: currentColor;
-  /* Nouveau logo plus pro : Triangle d'alerte moderne */
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L1 21h22L12 2zm0 15c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-4V8h2v5h-2z'/%3E%3C/svg%3E") no-repeat center;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L1 21h22L12 2zm0 15c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-4V8h2v5h-2z'/%3E%3C/svg%3E") no-repeat center;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: var(--ion-color-primary);
+  clip-path: polygon(0% 20%, 40% 20%, 40% 0%, 100% 50%, 40% 100%, 40% 80%, 0% 80%);
 }
 
-/* Location Marker */
+:deep(.location-marker-icon) {
+  background: transparent;
+  border: none;
+}
+
 :deep(.location-pulse) {
   position: relative;
   width: 60px;
   height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.location-dot) {
-  width: 22px;
-  height: 22px;
-  background: #3b82f6;
-  border: 3.5px solid white;
-  border-radius: 50%;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
-  z-index: 2;
 }
 
 :deep(.pulse-ring) {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 6px solid #3b82f6;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  opacity: 0;
-  animation: pulse 2s ease-out infinite;
-  z-index: 1;
+  background: rgba(var(--ion-color-primary-rgb), 0.2);
+  animation: pulse 1.5s infinite;
 }
 
-@keyframes pulse {
+:deep(.location-dot) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: var(--ion-color-primary);
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes ping {
   0% {
-    transform: scale(0.3);
-    opacity: 0.8;
+    width: 0;
+    height: 0;
+    opacity: 1;
   }
   100% {
-    transform: scale(1.2);
+    width: 70px;
+    height: 70px;
     opacity: 0;
   }
 }
 
-/* Modal Styles */
-.modal-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  max-height: 80vh; /* Limite la hauteur pour éviter qu'il dépasse */
-  overflow: hidden;
-  background: white;
-}
-
-.form-scroll-area {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 20px;
-}
-
-.modal-header {
-  text-align: center;
-  padding-bottom: 16px;
-  flex-shrink: 0;
-}
-
-.modal-handle {
-  width: 40px;
-  height: 5px;
-  background: #ddd;
-  border-radius: 10px;
-  margin: 0 auto 15px;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #222;
-}
-
-.modal-coords {
-  font-size: 0.8rem;
-  color: #888;
-  margin-top: 5px;
-}
-
-.form-list {
-  background: transparent;
-  padding: 0;
-}
-
-.modal-input-wrapper {
-  display: flex;
-  align-items: center;
-  background: white;
-  border-radius: 15px;
-  margin-bottom: 15px;
-  padding: 0 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.modal-input-wrapper.textarea-wrapper {
-  align-items: flex-start;
-  padding-top: 12px;
-}
-
-.modal-input-wrapper ion-item {
-  --background: transparent;
-  --padding-start: 10px;
-  --inner-padding-end: 0;
-  width: 100%;
-}
-
-.modal-actions {
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-  flex-shrink: 0;
-  background: white;
-}
-
-.modal-actions ion-button {
-  margin-top: 10px;
-  --border-radius: 12px;
-  height: 50px;
-  font-weight: 600;
-}
-
-:deep(.leaflet-popup-content-wrapper) {
-  border-radius: 12px;
-  padding: 4px;
-}
-
-:deep(.leaflet-popup-tip) {
-  background: white;
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0;
+  }
 }
 </style>
