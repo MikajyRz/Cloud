@@ -236,6 +236,7 @@ export default function MapPage() {
         <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         {reportsLoading ? (
           <div style={{ fontSize: 12 }}>Chargement…</div>
         ) : (
@@ -248,6 +249,8 @@ export default function MapPage() {
         )}
       </div> */}
 =======
+=======
+>>>>>>> parent of c493154 (maj)
 =======
 >>>>>>> parent of c493154 (maj)
         <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
