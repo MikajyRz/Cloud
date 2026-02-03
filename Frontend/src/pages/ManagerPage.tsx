@@ -224,9 +224,6 @@ export default function ManagerPage() {
 
       <section style={{ display: 'grid', gap: 8 }}>
         <h3 style={{ margin: 0 }}>Synchronisation Firebase</h3>
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>
-          À faire: endpoint backend pour récupérer les signalements depuis Firestore et/ou envoyer des données vers Firestore.
-        </p>
         <button disabled={syncLoading} type="button" onClick={onSync}>
           {syncLoading ? 'Synchronisation…' : 'Synchroniser'}
         </button>
@@ -246,9 +243,6 @@ export default function ManagerPage() {
 
       <section style={{ display: 'grid', gap: 8 }}>
         <h3 style={{ margin: 0 }}>Gestion des signalements</h3>
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>
-          À faire: endpoints backend pour lister/mettre à jour les champs (statut, surface m², budget, entreprise...).
-        </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button disabled={reportsLoading} type="button" onClick={loadReports}>
             {reportsLoading ? 'Chargement…' : 'Charger les signalements'}

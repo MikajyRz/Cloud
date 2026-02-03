@@ -31,7 +31,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: cloud
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       AUTH_JWT_SECRET: change-me-in-env
-      AUTH_MODE: offline
+      AUTH_MODE: online
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
       FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
     ports:
       - "8080:8080"

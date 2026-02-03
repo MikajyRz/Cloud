@@ -27,13 +27,57 @@ function ensureInit(): Promise<User | null> {
   return initPromise
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080'
+
+async function postJson(path: string, body: unknown, headers: Record<string, string> = {}): Promise<void> {
+  try {
+    await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    // ignore network errors (should not block UI)
+  }
+}
+
+function isInvalidCredentialsError(err: unknown): boolean {
+  const code = (err as any)?.code as string | undefined
+  return code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-credential'
+}
+
+function isUserDisabledError(err: unknown): boolean {
+  const code = (err as any)?.code as string | undefined
+  return code === 'auth/user-disabled'
+}
+
 export function useAuth() {
   const isAuthenticated = () => !!currentUser.value
 
   const login = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password)
-    currentUser.value = cred.user
-    return cred.user
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password)
+      currentUser.value = cred.user
+
+      const token = await cred.user.getIdToken()
+      await postJson('/api/auth/reset-attempts', { email }, { Authorization: `Bearer ${token}` })
+
+      return cred.user
+    } catch (err: unknown) {
+      if (isUserDisabledError(err)) {
+        throw new Error('Compte bloqué')
+      }
+
+      if (isInvalidCredentialsError(err)) {
+        await postJson('/api/auth/failed-login', { email })
+        throw new Error('Identifiants invalides')
+      }
+
+      throw err
+    }
   }
 
   const register = async (email: string, password: string) => {

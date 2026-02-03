@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string
   readonly VITE_MOBILE_TILE_URL?: string
   readonly VITE_FIRESTORE_REPORTS_COLLECTION?: string
+  readonly VITE_API_URL?: string
 }
 
 interface ImportMeta {
