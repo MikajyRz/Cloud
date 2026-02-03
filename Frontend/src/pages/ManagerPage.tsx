@@ -1,9 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { unlockUtilisateurApi, synchronizeBidirectionalApi, type SyncResultDto } from '@/auth/api'
 import ManagerLayout from '@/ui/ManagerLayout'
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8180'
+
+type AppConfig = {
+  id: number
+  configKey: string
+  configValue: string
+  description: string
+  updatedAt: string
+}
 
 export default function ManagerPage() {
   const { token } = useAuth()
@@ -16,6 +26,67 @@ export default function ManagerPage() {
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncResult, setSyncResult] = useState<SyncResultDto | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
+
+  // États pour la configuration
+  const [configs, setConfigs] = useState<AppConfig[]>([])
+  const [configLoading, setConfigLoading] = useState(false)
+  const [configError, setConfigError] = useState<string | null>(null)
+  const [configSuccess, setConfigSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadConfigs()
+  }, [])
+
+  const loadConfigs = async () => {
+    if (!token) return
+
+    setConfigLoading(true)
+    setConfigError(null)
+    try {
+      const response = await fetch(`${API_BASE}/api/config`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement des configurations')
+      }
+
+      const data = await response.json()
+      setConfigs(data)
+    } catch (err) {
+      setConfigError(err instanceof Error ? err.message : 'Erreur de chargement')
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
+  const updateConfig = async (key: string, value: string) => {
+    if (!token) return
+
+    setConfigError(null)
+    setConfigSuccess(null)
+    try {
+      const response = await fetch(`${API_BASE}/api/config/${key}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ value })
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+
+      setConfigSuccess('Configuration mise à jour avec succès')
+      loadConfigs()
+    } catch (err) {
+      setConfigError(err instanceof Error ? err.message : 'Erreur de mise à jour')
+    }
+  }
 
   const onUnlock = async (e: FormEvent) => {
     e.preventDefault()
@@ -63,6 +134,62 @@ export default function ManagerPage() {
     <ManagerLayout title="Dashboard" subtitle="Administration et opérations">
       {error ? <div className="alert alert--error">{error}</div> : null}
       {success ? <div className="alert alert--success">{success}</div> : null}
+
+      {/* Section Configuration Application */}
+      <div className="card">
+        <div className="card__body">
+          <div className="card__title">⚙️ Configuration Application</div>
+          <p className="card__subtitle">
+            Paramètres globaux de l'application
+          </p>
+
+          {configError && (
+            <div className="alert alert--error" style={{ marginBottom: '12px' }}>
+              {configError}
+            </div>
+          )}
+
+          {configSuccess && (
+            <div className="alert alert--success" style={{ marginBottom: '12px' }}>
+              {configSuccess}
+            </div>
+          )}
+
+          {configLoading ? (
+            <div className="muted">Chargement...</div>
+          ) : (
+            <div className="stack" style={{ gap: '16px' }}>
+              {configs.map((config) => (
+                <div key={config.id} className="field">
+                  <label className="label">
+                    {config.description || config.configKey}
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      className="input"
+                      defaultValue={config.configValue}
+                      onBlur={(e) => {
+                        if (e.target.value !== config.configValue) {
+                          updateConfig(config.configKey, e.target.value)
+                        }
+                      }}
+                      style={{ maxWidth: '150px' }}
+                    />
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>
+                      {config.configKey === 'session.duration.minutes' && 'minutes'}
+                      {config.configKey === 'auth.max.login.attempts' && 'tentatives'}
+                    </span>
+                  </div>
+                  <div className="muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                    Dernière mise à jour : {new Date(config.updatedAt).toLocaleString('fr-FR')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Section Synchronisation Firestore ↔ PostgreSQL */}
       <div className="card">

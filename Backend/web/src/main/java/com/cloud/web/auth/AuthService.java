@@ -8,6 +8,7 @@ import com.cloud.web.utilisateur.Utilisateur;
 import com.cloud.web.utilisateur.UtilisateurRepository;
 import com.cloud.web.utilisateur.RoleUtilisateur;
 import com.cloud.web.sync.dto.UtilisateurSyncDto;
+import com.cloud.web.config.AppConfigService;
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,21 +28,24 @@ public class AuthService {
     private final AuthSessionRepository authSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AppConfigService appConfigService;
 
-    private final int maxLoginAttempts;
+    private final int defaultMaxLoginAttempts;
     private final int lockMinutes;
 
     public AuthService(UtilisateurRepository utilisateurRepository,
                        AuthSessionRepository authSessionRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       @Value("${auth.maxLoginAttempts:3}") int maxLoginAttempts,
+                       AppConfigService appConfigService,
+                       @Value("${auth.maxLoginAttempts:3}") int defaultMaxLoginAttempts,
                        @Value("${auth.lockMinutes:15}") int lockMinutes) {
         this.utilisateurRepository = utilisateurRepository;
         this.authSessionRepository = authSessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.maxLoginAttempts = maxLoginAttempts;
+        this.appConfigService = appConfigService;
+        this.defaultMaxLoginAttempts = defaultMaxLoginAttempts;
         this.lockMinutes = lockMinutes;
     }
 
@@ -75,6 +79,7 @@ public class AuthService {
         if (!ok) {
             int attempts = utilisateur.getTentativesEchouees() + 1;
             utilisateur.setTentativesEchouees(attempts);
+            int maxLoginAttempts = appConfigService.getConfigValueAsInt("auth.max.login.attempts", defaultMaxLoginAttempts);
             if (attempts >= maxLoginAttempts) {
                 utilisateur.setEstBloque(true);
                 
@@ -99,7 +104,10 @@ public class AuthService {
         utilisateur.setEstBloque(false);
         utilisateurRepository.save(utilisateur);
 
-        var issued = jwtService.issueToken(utilisateur.getEmail(), Map.of("role", utilisateur.getRole().name()));
+        int sessionDurationMinutes = appConfigService.getConfigValueAsInt("session.duration.minutes", 30);
+        var issued = jwtService.issueTokenWithDuration(utilisateur.getEmail(), 
+            Map.of("role", utilisateur.getRole().name()), 
+            sessionDurationMinutes);
 
         AuthSession session = new AuthSession();
         session.setUtilisateur(utilisateur);
