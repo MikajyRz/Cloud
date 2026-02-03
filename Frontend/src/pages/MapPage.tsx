@@ -2,16 +2,18 @@ import '../App.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import { listPublicReportsApi, type PublicReportResponse, type StatutTravaux } from '@/auth/api'
+import { FiMap, FiLogOut, FiLogIn, FiUserPlus, FiSettings, FiUser } from 'react-icons/fi'
 
 export default function MapPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const popupRef = useRef<maplibregl.Popup | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reports, setReports] = useState<PublicReportResponse[]>([])
   const { role, me, logout } = useAuth()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const nav = useNavigate()
 
   useEffect(() => {
     if (!mapContainerRef.current) return
@@ -43,19 +45,120 @@ export default function MapPage() {
           container: mapContainerRef.current!,
           style: styleUrl,
           center: [47.5079, -18.8792],
-          zoom: 11,
-          attributionControl: false
+          zoom: 12,
         })
 
-        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
-        map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
-        
         map.on('error', (e: maplibregl.ErrorEvent) => {
           const msg = (e?.error as Error | undefined)?.message ?? 'Map error'
           setError(msg)
         })
 
+        map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
         mapRef.current = map
+
+        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
+        popupRef.current = popup
+
+        const loadReports = async () => {
+          const reports = await listPublicReportsApi()
+          setReports(reports)
+          const features = reports
+            .filter((r) => r.longitude != null && r.latitude != null)
+            .map((r) => ({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [r.longitude, r.latitude],
+              },
+              properties: {
+                id: r.id,
+                statut: r.statut ?? null,
+                dateSignalement: r.dateSignalement ?? null,
+                surfaceM2: r.surfaceM2 ?? null,
+                budget: r.budget ?? null,
+                entrepriseNom: r.entrepriseNom ?? null,
+              },
+            }))
+
+          const sourceData = {
+            type: 'FeatureCollection',
+            features,
+          } as const
+
+          if (map.getSource('reports')) {
+            ;(map.getSource('reports') as maplibregl.GeoJSONSource).setData(sourceData)
+            return
+          }
+
+          map.addSource('reports', {
+            type: 'geojson',
+            data: sourceData,
+          })
+
+          map.addLayer({
+            id: 'reports-circle',
+            type: 'circle',
+            source: 'reports',
+            paint: {
+              'circle-radius': 7,
+              'circle-color': '#ff2d2d',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
+              'circle-opacity': 0.9,
+            },
+          })
+
+          const formatStatut = (s: unknown): StatutTravaux | null => {
+            if (s === 'NOUVEAU' || s === 'EN_COURS' || s === 'TERMINE') return s
+            return null
+          }
+
+          const formatNumber = (v: unknown) => {
+            if (v == null || v === '') return '—'
+            const n = typeof v === 'number' ? v : Number(v)
+            return Number.isFinite(n) ? String(n) : '—'
+          }
+
+          const formatDate = (v: unknown) => {
+            if (!v) return '—'
+            const s = String(v)
+            return s.length > 19 ? s.slice(0, 19).replace('T', ' ') : s.replace('T', ' ')
+          }
+
+          map.on('mousemove', 'reports-circle', (e) => {
+            map.getCanvas().style.cursor = 'pointer'
+            const f = e.features?.[0]
+            if (!f) return
+
+            const p = (f.properties ?? {}) as unknown as PublicReportResponse & {
+              statut?: string
+            }
+
+            const statut = formatStatut((p as any).statut)
+            const html = `
+              <div style="font-size:12px; min-width: 220px">
+                <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
+                <div><strong>Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
+                <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
+                <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
+              </div>
+            `
+
+            popup.setLngLat(e.lngLat).setHTML(html).addTo(map)
+          })
+
+          map.on('mouseleave', 'reports-circle', () => {
+            map.getCanvas().style.cursor = ''
+            popup.remove()
+          })
+        }
+
+        map.on('load', () => {
+          void loadReports().catch((e) => {
+            setError(e instanceof Error ? e.message : String(e))
+          })
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
@@ -64,170 +167,98 @@ export default function MapPage() {
     void init()
 
     return () => {
+      popupRef.current?.remove()
+      popupRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
     }
   }, [])
 
+  const formatNum = (v: number) => {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v)
+  }
+
+  const points = reports.filter((r: PublicReportResponse) => r.longitude != null && r.latitude != null)
+  const pointsCount = points.length
+  const totalSurface = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.surfaceM2 ?? 0), 0)
+  const totalBudget = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.budget ?? 0), 0)
+  const doneCount = points.filter((r: PublicReportResponse) => r.statut === 'TERMINE').length
+  const progressPct = pointsCount > 0 ? Math.round((doneCount / pointsCount) * 100) : 0
+
   return (
-    <div className="app-shell" style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      <div className="map" ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+    <div className="app-shell">
+      <div className="map" ref={mapContainerRef} />
 
-      {/* Header Bar */}
-      <div className="glass-panel" style={{
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        right: 20,
-        padding: '12px 24px',
-        borderRadius: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            padding: '4px 8px',
-            borderRadius: 10,
-            color: 'white',
-            display: 'flex',
-            fontSize: '20px'
-          }}>
-            🗺️
+      <div className="navbar-overlay">
+        <div className="nav-card">
+          <div className="nav-brand">
+            <FiMap />
+            <span>Cloud Map</span>
           </div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-            GeoSignal
-          </h1>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-           {/* Desktop Menu */}
-          <div className="desktop-menu" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {role === 'VISITEUR' ? (
-              <>
-                <Link to="/login" className="btn-ghost" style={{ 
-                  textDecoration: 'none', 
-                  color: '#475569', 
-                  fontWeight: 600,
-                  fontSize: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  transition: 'all 0.2s'
-                }}>
-                  <span style={{ fontSize: '16px' }}>🔑</span>
-                  Connexion
-                </Link>
-                <Link to="/register" className="btn-primary" style={{ 
-                  textDecoration: 'none', 
-                  fontSize: 14,
-                  padding: '8px 20px',
-                  borderRadius: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8
-                }}>
-                  <span style={{ fontSize: '16px' }}>➕</span>
-                  Créer un compte
-                </Link>
-              </>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8, 
-                  background: 'rgba(255,255,255,0.5)', 
-                  padding: '6px 12px', 
-                  borderRadius: 20,
-                  border: '1px solid rgba(0,0,0,0.05)'
-                }}>
-                  <div style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '50%', fontSize: '12px' }}>
-                    👤
-                  </div>
-                  <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                    {me?.email?.split('@')[0]}
-                  </span>
-                  <span style={{ 
-                    fontSize: 10, 
-                    background: role === 'MANAGER' ? '#dbeafe' : '#f1f5f9', 
-                    color: role === 'MANAGER' ? '#1e40af' : '#475569',
-                    padding: '2px 8px',
-                    borderRadius: 10,
-                    fontWeight: 700,
-                    letterSpacing: 0.5
-                  }}>
-                    {role}
-                  </span>
-                </div>
-
-                {role === 'MANAGER' && (
-                  <Link to="/manager" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    background: '#0f172a',
-                    color: 'white',
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    textDecoration: 'none',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)'
-                  }}>
-                    <span style={{ fontSize: '14px' }}>🛡️</span>
-                    Manager
-                  </Link>
-                )}
-
-                <button onClick={logout} style={{
-                  background: 'white',
-                  border: '1px solid #e2e8f0',
-                  color: '#ef4444',
-                  padding: '6px 10px',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '16px'
-                }}>
-                  🚪
-                </button>
+          <div className="nav-user">
+            <div className="user-badge">{role}</div>
+            {me?.email && (
+              <div className="user-email">
+                <FiUser style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                {me.email}
               </div>
             )}
           </div>
         </div>
+
+        <div className="nav-actions">
+          {role === 'VISITEUR' ? (
+            <>
+              <Link to="/login" className="btn-nav btn-outline">
+                <FiLogIn /> Se connecter
+              </Link>
+              <Link to="/register" className="btn-nav btn-primary">
+                <FiUserPlus /> S'inscrire
+              </Link>
+            </>
+          ) : (
+            <>
+              {role === 'MANAGER' && (
+                <Link to="/manager" className="btn-nav btn-outline">
+                  <FiSettings /> Manager
+                </Link>
+              )}
+              <button onClick={logout} className="btn-nav btn-danger">
+                <FiLogOut /> Déconnexion
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {error && (
-        <div style={{ 
-          position: 'absolute', 
-          bottom: 30, 
-          left: '50%', 
-          transform: 'translateX(-50%)', 
-          padding: '12px 24px', 
-          background: '#ef4444', 
-          color: 'white', 
-          borderRadius: 50,
-          fontSize: 14,
-          fontWeight: 500,
-          boxShadow: '0 10px 25px -5px rgba(239, 68, 68, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          zIndex: 20
-        }}>
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '14px' }}>
-            ✕
-          </button>
+      <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
+        <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
+          <div>Nb de points: <strong>{pointsCount}</strong></div>
+          <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
+          <div>Avancement: <strong>{progressPct}%</strong></div>
+          <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
         </div>
-      )}
+      </div>
+
+      {error ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            right: 12,
+            padding: 12,
+            background: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            fontSize: 12,
+            borderRadius: 8,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
     </div>
   )
 }
