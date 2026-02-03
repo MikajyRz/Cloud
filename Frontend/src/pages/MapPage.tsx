@@ -232,7 +232,8 @@ export default function MapPage() {
         </div>
       </div>
 
-
+      <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
         <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
           <div>Nb de points: <strong>{pointsCount}</strong></div>
           <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
