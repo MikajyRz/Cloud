@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-// import { listPublicReportsApi, type PublicReportResponse, type StatutTravaux } from '@/auth/api'
+import { listPublicReportsApi, type PublicReportResponse, type StatutTravaux } from '@/auth/api'
 import { FiMap, FiLogOut, FiLogIn, FiUserPlus, FiSettings, FiUser } from 'react-icons/fi'
 
 export default function MapPage() {
@@ -243,12 +243,22 @@ export default function MapPage() {
       </div>
 
       {error ? (
-        <div style={{ position: 'absolute', left: 12, bottom: 12, right: 12, padding: 12, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 12, borderRadius: 8 }}>
-      {error && (
-        <div className="error-overlay">
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            right: 12,
+            padding: 12,
+            background: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            fontSize: 12,
+            borderRadius: 8,
+          }}
+        >
           {error}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import {
   listEntreprisesApi,
@@ -13,6 +13,18 @@ import {
   type SyncReportsResponse,
   type UpdateReportRequest,
 } from '@/auth/api'
+
+import {
+  FiAlertCircle,
+  FiCheckCircle,
+  FiDatabase,
+  FiLogOut,
+  FiMap,
+  FiRefreshCw,
+  FiSettings,
+  FiUnlock,
+  FiUser,
+} from 'react-icons/fi'
 
 
 export default function ManagerPage() {
