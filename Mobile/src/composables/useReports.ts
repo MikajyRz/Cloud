@@ -26,6 +26,7 @@ export type ReportDoc = {
   userEmail?: string
   createdAt?: unknown
   imageUrls?: string[]
+  status: string
 }
 
 type CreateReportInput = {
@@ -57,6 +58,7 @@ export function useReports(firestore: Firestore = db) {
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
       imageUrls: input.imageUrls,
+      status: 'NOUVEAU',
     })
   }
 

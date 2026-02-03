@@ -22,6 +22,7 @@
     "@capacitor/ios": "7.4.4",
     "@capacitor/keyboard": "7.0.3",
     "@capacitor/preferences": "^7.0.2",
+    "@capacitor/push-notifications": "^7.0.4",
     "@capacitor/status-bar": "7.0.3",
     "@ionic/pwa-elements": "^3.3.0",
     "@ionic/vue": "^8.7.11",
@@ -34,9 +35,9 @@
   },
   "devDependencies": {
     "@capacitor/cli": "7.4.4",
+    "@types/leaflet": "^1.9.20",
     "@vitejs/plugin-legacy": "^5.0.0",
     "@vitejs/plugin-vue": "^4.0.0",
-    "@types/leaflet": "^1.9.20",
     "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/test-utils": "^2.3.0",
     "cypress": "^13.5.0",
