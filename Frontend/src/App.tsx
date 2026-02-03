@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import MapPage from './pages/MapPage'
 import ManagerPage from './pages/ManagerPage'
+import LockedUsersPage from './pages/LockedUsersPage'
 import RequireRole from './routes/RequireRole'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
 
       <Route element={<RequireRole role="MANAGER" />}>
         <Route path="/manager" element={<ManagerPage />} />
+        <Route path="/manager/locked-users" element={<LockedUsersPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

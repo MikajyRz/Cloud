@@ -4,12 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import { listPublicReportsApi, type PublicReportResponse, type StatutTravaux } from '@/auth/api'
 import { FiMap, FiLogOut, FiLogIn, FiUserPlus, FiSettings, FiUser } from 'react-icons/fi'
 
 export default function MapPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const popupRef = useRef<maplibregl.Popup | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reports, setReports] = useState<PublicReportResponse[]>([])
   const { role, me, logout } = useAuth()
 
   useEffect(() => {
@@ -52,6 +55,110 @@ export default function MapPage() {
 
         map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
         mapRef.current = map
+
+        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
+        popupRef.current = popup
+
+        const loadReports = async () => {
+          const reports = await listPublicReportsApi()
+          setReports(reports)
+          const features = reports
+            .filter((r) => r.longitude != null && r.latitude != null)
+            .map((r) => ({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [r.longitude, r.latitude],
+              },
+              properties: {
+                id: r.id,
+                statut: r.statut ?? null,
+                dateSignalement: r.dateSignalement ?? null,
+                surfaceM2: r.surfaceM2 ?? null,
+                budget: r.budget ?? null,
+                entrepriseNom: r.entrepriseNom ?? null,
+              },
+            }))
+
+          const sourceData = {
+            type: 'FeatureCollection',
+            features,
+          } as const
+
+          if (map.getSource('reports')) {
+            ;(map.getSource('reports') as maplibregl.GeoJSONSource).setData(sourceData)
+            return
+          }
+
+          map.addSource('reports', {
+            type: 'geojson',
+            data: sourceData,
+          })
+
+          map.addLayer({
+            id: 'reports-circle',
+            type: 'circle',
+            source: 'reports',
+            paint: {
+              'circle-radius': 7,
+              'circle-color': '#ff2d2d',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
+              'circle-opacity': 0.9,
+            },
+          })
+
+          const formatStatut = (s: unknown): StatutTravaux | null => {
+            if (s === 'NOUVEAU' || s === 'EN_COURS' || s === 'TERMINE') return s
+            return null
+          }
+
+          const formatNumber = (v: unknown) => {
+            if (v == null || v === '') return '—'
+            const n = typeof v === 'number' ? v : Number(v)
+            return Number.isFinite(n) ? String(n) : '—'
+          }
+
+          const formatDate = (v: unknown) => {
+            if (!v) return '—'
+            const s = String(v)
+            return s.length > 19 ? s.slice(0, 19).replace('T', ' ') : s.replace('T', ' ')
+          }
+
+          map.on('mousemove', 'reports-circle', (e) => {
+            map.getCanvas().style.cursor = 'pointer'
+            const f = e.features?.[0]
+            if (!f) return
+
+            const p = (f.properties ?? {}) as unknown as PublicReportResponse & {
+              statut?: string
+            }
+
+            const statut = formatStatut((p as any).statut)
+            const html = `
+              <div style="font-size:12px; min-width: 220px">
+                <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
+                <div><strong>Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
+                <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
+                <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
+              </div>
+            `
+
+            popup.setLngLat(e.lngLat).setHTML(html).addTo(map)
+          })
+
+          map.on('mouseleave', 'reports-circle', () => {
+            map.getCanvas().style.cursor = ''
+            popup.remove()
+          })
+        }
+
+        map.on('load', () => {
+          void loadReports().catch((e) => {
+            setError(e instanceof Error ? e.message : String(e))
+          })
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
@@ -60,10 +167,23 @@ export default function MapPage() {
     void init()
 
     return () => {
+      popupRef.current?.remove()
+      popupRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
     }
   }, [])
+
+  const formatNum = (v: number) => {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v)
+  }
+
+  const points = reports.filter((r: PublicReportResponse) => r.longitude != null && r.latitude != null)
+  const pointsCount = points.length
+  const totalSurface = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.surfaceM2 ?? 0), 0)
+  const totalBudget = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.budget ?? 0), 0)
+  const doneCount = points.filter((r: PublicReportResponse) => r.statut === 'TERMINE').length
+  const progressPct = pointsCount > 0 ? Math.round((doneCount / pointsCount) * 100) : 0
 
   return (
     <div className="app-shell">
@@ -112,11 +232,33 @@ export default function MapPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="error-overlay">
+      <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
+        <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
+          <div>Nb de points: <strong>{pointsCount}</strong></div>
+          <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
+          <div>Avancement: <strong>{progressPct}%</strong></div>
+          <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
+        </div>
+      </div>
+
+      {error ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            right: 12,
+            padding: 12,
+            background: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            fontSize: 12,
+            borderRadius: 8,
+          }}
+        >
           {error}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

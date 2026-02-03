@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /signalements/{docId} {
+
+      // OFF (toggle décoché): on veut pouvoir lire tous les signalements
+      allow read: if request.auth != null;
+
+      // ON (mineOnly=true): création seulement si uid == user connecté
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+
+      // Modif/suppression uniquement sur ses propres docs + interdit de changer uid
+      allow update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid;
+    }
+  }
+}

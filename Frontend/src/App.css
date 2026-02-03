@@ -84,6 +84,7 @@
 .nav-actions {
   display: flex;
   gap: 10px;
+  pointer-events: auto;
 }
 
 .btn-nav {
