@@ -232,27 +232,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        {reportsLoading ? (
-          <div style={{ fontSize: 12 }}>Chargement…</div>
-        ) : (
-          <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
-            <div>Nb de points: <strong>{pointsCount}</strong></div>
-            <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
-            <div>Avancement: <strong>{progressPct}%</strong></div>
-            <div>Total budget: <strong>{formatMga(totalBudget)}</strong></div>
-          </div>
-        )}
-      </div> */}
-=======
-=======
->>>>>>> parent of c493154 (maj)
-=======
->>>>>>> parent of c493154 (maj)
+
         <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
           <div>Nb de points: <strong>{pointsCount}</strong></div>
           <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
@@ -260,7 +240,6 @@ export default function MapPage() {
           <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
         </div>
       </div>
->>>>>>> parent of c493154 (maj)
 
       {error ? (
         <div style={{ position: 'absolute', left: 12, bottom: 12, right: 12, padding: 12, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 12, borderRadius: 8 }}>
