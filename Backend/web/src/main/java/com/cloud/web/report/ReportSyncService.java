@@ -6,10 +6,12 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.SetOptions;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cloud.web.user.FirebaseUserSyncService;
 import com.cloud.web.user.UserRepository;
 
 import java.math.BigDecimal;
@@ -23,6 +25,7 @@ public class ReportSyncService {
     private final Firestore firestore;
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
+    private final ObjectProvider<FirebaseUserSyncService> firebaseUserSyncService;
 
     private final String firestoreCollection;
 
@@ -30,16 +33,23 @@ public class ReportSyncService {
             Firestore firestore,
             ReportRepository reportRepository,
             UserRepository userRepository,
+            ObjectProvider<FirebaseUserSyncService> firebaseUserSyncService,
             @Value("${firestore.reports.collection:signalements}") String firestoreCollection
     ) {
         this.firestore = firestore;
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
+        this.firebaseUserSyncService = firebaseUserSyncService;
         this.firestoreCollection = firestoreCollection;
     }
 
     @Transactional
     public SyncReportsResponse sync() {
+        FirebaseUserSyncService userSync = firebaseUserSyncService.getIfAvailable();
+        if (userSync != null) {
+            userSync.syncAllUsersToPostgres();
+        }
+
         QuerySnapshot snap;
         try {
             snap = firestore.collection(firestoreCollection).get().get();
