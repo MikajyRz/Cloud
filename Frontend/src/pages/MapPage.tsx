@@ -13,7 +13,6 @@ export default function MapPage() {
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reports, setReports] = useState<PublicReportResponse[]>([])
-  const [reportsLoading, setReportsLoading] = useState(true)
   const { role, me, logout } = useAuth()
 
   useEffect(() => {
@@ -61,8 +60,6 @@ export default function MapPage() {
         popupRef.current = popup
 
         const loadReports = async () => {
-          setReportsLoading(true)
-          setError(null)
           const reports = await listPublicReportsApi()
           setReports(reports)
           const features = reports
@@ -122,17 +119,6 @@ export default function MapPage() {
             return Number.isFinite(n) ? String(n) : '—'
           }
 
-          const formatMga = (v: unknown) => {
-            if (v == null || v === '') return '—'
-            const n = typeof v === 'number' ? v : Number(v)
-            if (!Number.isFinite(n)) return '—'
-            return new Intl.NumberFormat('fr-MG', {
-              style: 'currency',
-              currency: 'MGA',
-              maximumFractionDigits: 0,
-            }).format(n)
-          }
-
           const formatDate = (v: unknown) => {
             if (!v) return '—'
             const s = String(v)
@@ -154,7 +140,7 @@ export default function MapPage() {
                 <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
                 <div><strong>Statut:</strong> ${statut ?? '—'}</div>
                 <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
-                <div><strong>Budget:</strong> ${formatMga((p as any).budget)}</div>
+                <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
                 <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
               </div>
             `
@@ -166,14 +152,11 @@ export default function MapPage() {
             map.getCanvas().style.cursor = ''
             popup.remove()
           })
-
-          setReportsLoading(false)
         }
 
         map.on('load', () => {
           void loadReports().catch((e) => {
             setError(e instanceof Error ? e.message : String(e))
-            setReportsLoading(false)
           })
         })
       } catch (e) {
@@ -195,30 +178,12 @@ export default function MapPage() {
     return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v)
   }
 
-  const formatMga = (v: number) => {
-    return new Intl.NumberFormat('fr-MG', {
-      style: 'currency',
-      currency: 'MGA',
-      maximumFractionDigits: 0,
-    }).format(v)
-  }
-
   const points = reports.filter((r: PublicReportResponse) => r.longitude != null && r.latitude != null)
   const pointsCount = points.length
   const totalSurface = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.surfaceM2 ?? 0), 0)
   const totalBudget = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.budget ?? 0), 0)
-  const progressPct =
-    pointsCount > 0
-      ? Math.round(
-          (points.reduce((acc: number, r: PublicReportResponse) => {
-            if (r.statut === 'TERMINE') return acc + 1
-            if (r.statut === 'EN_COURS') return acc + 0.5
-            return acc
-          }, 0) /
-            pointsCount) *
-            100,
-        )
-      : 0
+  const doneCount = points.filter((r: PublicReportResponse) => r.statut === 'TERMINE').length
+  const progressPct = pointsCount > 0 ? Math.round((doneCount / pointsCount) * 100) : 0
 
   return (
     <div className="app-shell">
@@ -269,6 +234,7 @@ export default function MapPage() {
 
       {/* <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
         <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
+<<<<<<< HEAD
         {reportsLoading ? (
           <div style={{ fontSize: 12 }}>Chargement…</div>
         ) : (
@@ -280,6 +246,15 @@ export default function MapPage() {
           </div>
         )}
       </div> */}
+=======
+        <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
+          <div>Nb de points: <strong>{pointsCount}</strong></div>
+          <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
+          <div>Avancement: <strong>{progressPct}%</strong></div>
+          <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
+        </div>
+      </div>
+>>>>>>> parent of c493154 (maj)
 
       {error ? (
         <div style={{ position: 'absolute', left: 12, bottom: 12, right: 12, padding: 12, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 12, borderRadius: 8 }}>
