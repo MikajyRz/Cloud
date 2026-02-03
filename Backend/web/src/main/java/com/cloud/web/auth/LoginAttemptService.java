@@ -2,6 +2,7 @@ package com.cloud.web.auth;
 
 import com.cloud.web.user.User;
 import com.cloud.web.user.UserRepository;
+import com.cloud.web.user.UserRole;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserRecord;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LoginAttemptService {
+
+    private static final String FIREBASE_PLACEHOLDER_PASSWORD = "{firebase}";
 
     private final UserRepository userRepository;
     private final FirebaseAuth firebaseAuth;
@@ -26,12 +29,11 @@ public class LoginAttemptService {
     @Transactional
     public void recordFailedLogin(String email) {
         String normalized = email.toLowerCase();
-        var userOpt = userRepository.findByEmail(normalized);
-        if (userOpt.isEmpty()) {
+        User user = userRepository.findByEmail(normalized)
+                .orElseGet(() -> provisionUserIfFirebaseExists(normalized));
+        if (user == null) {
             return;
         }
-
-        User user = userOpt.get();
         if (user.isLockedNow()) {
             return;
         }
@@ -50,12 +52,11 @@ public class LoginAttemptService {
     @Transactional
     public void resetAttempts(String email) {
         String normalized = email.toLowerCase();
-        var userOpt = userRepository.findByEmail(normalized);
-        if (userOpt.isEmpty()) {
+        User user = userRepository.findByEmail(normalized)
+                .orElseGet(() -> provisionUserIfFirebaseExists(normalized));
+        if (user == null) {
             return;
         }
-
-        User user = userOpt.get();
         user.setTentativesEchouees(0);
         user.setEstBloque(false);
         userRepository.save(user);
@@ -76,6 +77,24 @@ public class LoginAttemptService {
             UserRecord record = firebaseAuth.getUserByEmail(email);
             firebaseAuth.updateUser(new UserRecord.UpdateRequest(record.getUid()).setDisabled(false));
         } catch (Exception ignored) {
+        }
+    }
+
+    private User provisionUserIfFirebaseExists(String email) {
+        try {
+            firebaseAuth.getUserByEmail(email);
+
+            User user = new User();
+            user.setEmail(email);
+            user.setMotDePasse(FIREBASE_PLACEHOLDER_PASSWORD);
+            user.setNom(null);
+            user.setPrenom(null);
+            user.setRole(UserRole.UTILISATEUR);
+            user.setTentativesEchouees(0);
+            user.setEstBloque(false);
+            return userRepository.save(user);
+        } catch (Exception ex) {
+            return null;
         }
     }
 }

@@ -1,33 +1,19 @@
-// import { ChangeEvent, FormEvent, useState } from 'react'
-// import { Link } from 'react-router-dom'
-// import { useAuth } from '@/auth/AuthContext'
-// import {
-//   listEntreprisesApi,
-//   listManagerReportsApi,
-//   syncReportsApi,
-//   unlockUserApi,
-//   updateManagerReportApi,
-//   type EntrepriseResponse,
-//   type ManagerReportResponse,
-//   type StatutTravaux,
-//   type SyncReportsResponse,
-//   type UpdateReportRequest,
-// } from '@/auth/api'
-import { FormEvent, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { ChangeEvent, FormEvent, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { syncReportsApi, unlockUserApi, type SyncReportsResponse } from '@/auth/api'
-import { 
-  FiUser, 
-  FiMap, 
-  FiSettings, 
-  FiLogOut, 
-  FiUnlock, 
-  FiRefreshCw, 
-  FiCheckCircle, 
-  FiAlertCircle,
-  FiDatabase
-} from 'react-icons/fi'
+import {
+  listEntreprisesApi,
+  listManagerReportsApi,
+  syncReportsApi,
+  unlockUserApi,
+  updateManagerReportApi,
+  type EntrepriseResponse,
+  type ManagerReportResponse,
+  type StatutTravaux,
+  type SyncReportsResponse,
+  type UpdateReportRequest,
+} from '@/auth/api'
+
 
 export default function ManagerPage() {
   const { me, token, logout } = useAuth()
@@ -196,8 +182,8 @@ export default function ManagerPage() {
         {/* <nav style={{ display: 'grid', gap: 8 }}>
           <Link to="/" style={{ textDecoration: 'none' }}>Carte</Link>
           <Link to="/manager" style={{ textDecoration: 'none' }}>Panneau manager</Link>
-          <Link to="/manager/locked-users" style={{ textDecoration: 'none' }}>Utilisateurs bloqués</Link>
-        <nav className="sidebar-nav"> */}
+          <Link to="/manager/locked-users" style={{ textDecoration: 'none' }}>Utilisateurs bloqués</Link> */}
+        <nav className="sidebar-nav">
           <Link 
             to="/" 
             className={`sidebar-link ${location.pathname === '/' ? 'active' : ''}`}
