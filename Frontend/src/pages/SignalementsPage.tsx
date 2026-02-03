@@ -14,6 +14,9 @@ type Signalement = {
   budget?: number
   statut: string
   emailUtilisateur?: string
+  dateSignalement?: string
+  dateEnCours?: string
+  dateTermine?: string
 }
 
 export default function SignalementsPage() {
@@ -119,6 +122,7 @@ export default function SignalementsPage() {
                   <th>Budget</th>
                   <th>Utilisateur</th>
                   <th style={{ width: 180 }}>Statut</th>
+                  <th>Historique</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +148,55 @@ export default function SignalementsPage() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                        {sig.dateSignalement && (
+                          <div>
+                            <span className="badge" style={{ fontSize: '0.75rem' }}>Créé</span>{' '}
+                            <span className="muted">
+                              {new Date(sig.dateSignalement).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {sig.dateEnCours && (
+                          <div>
+                            <span className="badge badge--warning" style={{ fontSize: '0.75rem' }}>En cours</span>{' '}
+                            <span className="muted">
+                              {new Date(sig.dateEnCours).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {sig.dateTermine && (
+                          <div>
+                            <span className="badge badge--success" style={{ fontSize: '0.75rem' }}>Terminé</span>{' '}
+                            <span className="muted">
+                              {new Date(sig.dateTermine).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {!sig.dateSignalement && !sig.dateEnCours && !sig.dateTermine && (
+                          <span className="muted">Aucun historique</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

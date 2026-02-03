@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +46,30 @@ public class SignalementService {
         long enCours = all.stream().filter(s -> s.getStatut() == StatutTravaux.EN_COURS).count();
         long annule = all.stream().filter(s -> s.getStatut() == StatutTravaux.ANNULE).count();
         
-        double avancement = total > 0 ? (termine * 100.0) / total : 0.0;
+        // Calcul avancement pondéré : NOUVEAU=0%, EN_COURS=50%, TERMINE=100%
+        double avancement = 0.0;
+        if (total > 0) {
+            double totalProgress = (nouveau * 0.0) + (enAttente * 0.0) + (enCours * 50.0) + (termine * 100.0) + (annule * 0.0);
+            avancement = totalProgress / total;
+        }
+        
+        // Calcul délai moyen de traitement (en jours) pour les signalements terminés
+        Double delaiMoyen = null;
+        List<Signalement> termines = all.stream()
+            .filter(s -> s.getStatut() == StatutTravaux.TERMINE 
+                && s.getDateSignalement() != null 
+                && s.getDateTermine() != null)
+            .toList();
+        
+        if (!termines.isEmpty()) {
+            long totalJours = termines.stream()
+                .mapToLong(s -> java.time.temporal.ChronoUnit.DAYS.between(
+                    s.getDateSignalement(),
+                    s.getDateTermine()
+                ))
+                .sum();
+            delaiMoyen = (double) totalJours / termines.size();
+        }
         
         return new SignalementStatsDto(
             total,
@@ -56,7 +80,8 @@ public class SignalementService {
             enAttente,
             enCours,
             termine,
-            annule
+            annule,
+            delaiMoyen
         );
     }
 
@@ -67,7 +92,16 @@ public class SignalementService {
             .orElseThrow(() -> new RuntimeException("Signalement non trouvé"));
 
         try {
+            StatutTravaux oldStatut = signalement.getStatut();
             StatutTravaux newStatut = StatutTravaux.valueOf(statutStr);
+            
+            // Mettre à jour les dates selon le nouveau statut
+            if (newStatut == StatutTravaux.EN_COURS && oldStatut != StatutTravaux.EN_COURS) {
+                signalement.setDateEnCours(LocalDateTime.now());
+            } else if (newStatut == StatutTravaux.TERMINE && oldStatut != StatutTravaux.TERMINE) {
+                signalement.setDateTermine(LocalDateTime.now());
+            }
+            
             signalement.setStatut(newStatut);
             signalementRepository.save(signalement);
             return toDto(signalement);
@@ -88,7 +122,9 @@ public class SignalementService {
             signalement.getStatut().name(),
             signalement.getUtilisateur() != null ? signalement.getUtilisateur().getEmail() : null,
             signalement.getDateSignalement(),
-            signalement.getEntreprise() != null ? signalement.getEntreprise().getNom() : null
+            signalement.getEntreprise() != null ? signalement.getEntreprise().getNom() : null,
+            signalement.getDateEnCours(),
+            signalement.getDateTermine()
         );
     }
 }
