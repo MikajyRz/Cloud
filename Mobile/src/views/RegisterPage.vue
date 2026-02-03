@@ -10,7 +10,7 @@
         <div class="register-card">
           <div class="register-header">
             <div class="logo-circle">
-              <ion-icon :icon="personAddOutline" />
+              <ion-icon :icon="mapOutline" />
             </div>
             <h1>Créer un compte</h1>
             <p>Rejoignez-nous pour signaler des incidents</p>
@@ -78,12 +78,12 @@ import {
   IonAlert,
 } from '@ionic/vue'
 import {
-  mailOutline,
-  lockClosedOutline,
-  personAddOutline,
-  eyeOutline,
-  eyeOffOutline,
-} from 'ionicons/icons'
+    mailOutline,
+    lockClosedOutline,
+    mapOutline,
+    eyeOutline,
+    eyeOffOutline,
+  } from 'ionicons/icons'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()

@@ -10,7 +10,7 @@
         <div class="login-card">
           <div class="login-header">
             <div class="logo-circle">
-              <ion-icon :icon="personCircleOutline" />
+              <ion-icon :icon="mapOutline" />
             </div>
             <h1>Welcome back</h1>
             <p>Please enter your details to sign in</p>
@@ -106,10 +106,10 @@ import {
   IonAlert,
 } from '@ionic/vue'
 import {
-  mailOutline,
-  lockClosedOutline,
-  personCircleOutline,
-  logoApple,
+    mailOutline,
+    lockClosedOutline,
+    mapOutline,
+    logoApple,
   logoGoogle,
   logoFacebook,
   eyeOutline,
