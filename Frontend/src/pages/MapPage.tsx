@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import { FiMap, FiLogOut, FiLogIn, FiUserPlus, FiSettings, FiUser } from 'react-icons/fi'
 
 export default function MapPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -41,7 +42,7 @@ export default function MapPage() {
           container: mapContainerRef.current!,
           style: styleUrl,
           center: [47.5079, -18.8792],
-          zoom: 11,
+          zoom: 12,
         })
 
         map.on('error', (e: maplibregl.ErrorEvent) => {
@@ -49,7 +50,7 @@ export default function MapPage() {
           setError(msg)
         })
 
-        map.addControl(new maplibregl.NavigationControl(), 'top-right')
+        map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
         mapRef.current = map
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -68,24 +69,54 @@ export default function MapPage() {
     <div className="app-shell">
       <div className="map" ref={mapContainerRef} />
 
-      <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', gap: 8, alignItems: 'center', padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8 }}>
-        <span style={{ fontSize: 12 }}>Profil: <strong>{role}</strong>{me?.email ? ` (${me.email})` : ''}</span>
-        {role === 'VISITEUR' ? (
-          <>
-            <Link to="/login" style={{ color: '#fff' }}>Login</Link>
-            <Link to="/register" style={{ color: '#fff' }}>Register</Link>
-          </>
-        ) : (
-          <button onClick={logout}>Logout</button>
-        )}
-        {role === 'MANAGER' ? <Link to="/manager" style={{ color: '#fff' }}>Manager</Link> : null}
+      <div className="navbar-overlay">
+        <div className="nav-card">
+          <div className="nav-brand">
+            <FiMap />
+            <span>Cloud Map</span>
+          </div>
+
+          <div className="nav-user">
+            <div className="user-badge">{role}</div>
+            {me?.email && (
+              <div className="user-email">
+                <FiUser style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                {me.email}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="nav-actions">
+          {role === 'VISITEUR' ? (
+            <>
+              <Link to="/login" className="btn-nav btn-outline">
+                <FiLogIn /> Se connecter
+              </Link>
+              <Link to="/register" className="btn-nav btn-primary">
+                <FiUserPlus /> S'inscrire
+              </Link>
+            </>
+          ) : (
+            <>
+              {role === 'MANAGER' && (
+                <Link to="/manager" className="btn-nav btn-outline">
+                  <FiSettings /> Manager
+                </Link>
+              )}
+              <button onClick={logout} className="btn-nav btn-danger">
+                <FiLogOut /> Déconnexion
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {error ? (
-        <div style={{ position: 'absolute', left: 12, bottom: 12, right: 12, padding: 12, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 12, borderRadius: 8 }}>
+      {error && (
+        <div className="error-overlay">
           {error}
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
