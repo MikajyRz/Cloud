@@ -1,0 +1,93 @@
+{
+  "utilisateurs": {
+    "manager@cloud_local": {
+      "email": "manager@cloud.local",
+      "nom": "Manager",
+      "prenom": "Default",
+      "role": "MANAGER",
+      "motDePasse": "$2a$10$hashed_password_here",
+      "telephone": "+261340000001"
+    },
+    "jean_dupont@example_com": {
+      "email": "jean.dupont@example.com",
+      "nom": "Dupont",
+      "prenom": "Jean",
+      "role": "UTILISATEUR",
+      "motDePasse": "$2a$10$hashed_password_here",
+      "telephone": "+261340000002"
+    },
+    "marie_martin@example_com": {
+      "email": "marie.martin@example.com",
+      "nom": "Martin",
+      "prenom": "Marie",
+      "role": "UTILISATEUR",
+      "motDePasse": "$2a$10$hashed_password_here",
+      "telephone": "+261340000003"
+    },
+    "visiteur@example_com": {
+      "email": "visiteur@example.com",
+      "nom": "Visiteur",
+      "prenom": "Test",
+      "role": "VISITEUR",
+      "motDePasse": "$2a$10$hashed_password_here",
+      "telephone": "+261340000004"
+    }
+  },
+  "signalements": {
+    "signal-001": {
+      "id": "signal-001",
+      "titre": "Route endommagée - Analakely",
+      "description": "Présence de plusieurs trous sur la chaussée principale. Danger pour les véhicules.",
+      "latitude": "-18.9137",
+      "longitude": "47.5361",
+      "surfaceM2": "25.5",
+      "budget": "5000000",
+      "statut": "NOUVEAU",
+      "emailUtilisateur": "jean.dupont@example.com"
+    },
+    "signal-002": {
+      "id": "signal-002",
+      "titre": "Trottoir défectueux - Antananarivo",
+      "description": "Dalle de trottoir cassée, risque de chute pour les piétons.",
+      "latitude": "-18.9249",
+      "longitude": "47.5237",
+      "surfaceM2": "8.0",
+      "budget": "1500000",
+      "statut": "EN_COURS",
+      "emailUtilisateur": "marie.martin@example.com"
+    },
+    "signal-003": {
+      "id": "signal-003",
+      "titre": "Fuite d'eau - Avenue de l'Indépendance",
+      "description": "Fuite importante causant des dégâts sur la voirie.",
+      "latitude": "-18.9189",
+      "longitude": "47.5289",
+      "surfaceM2": "15.0",
+      "budget": "3000000",
+      "statut": "TERMINE",
+      "emailUtilisateur": "jean.dupont@example.com"
+    },
+    "signal-004": {
+      "id": "signal-004",
+      "titre": "Nid de poule - Route nationale",
+      "description": "Grand nid de poule dangereux pour la circulation.",
+      "latitude": "-18.8792",
+      "longitude": "47.5079",
+      "surfaceM2": "12.3",
+      "budget": "2000000",
+      "statut": "NOUVEAU",
+      "emailUtilisateur": "marie.martin@example.com"
+    },
+    "signal-005": {
+      "id": "signal-005",
+      "titre": "Pont endommagé - Périphérique",
+      "description": "Fissures importantes sur le pont nécessitant une réparation urgente.",
+      "latitude": "-18.9456",
+      "longitude": "47.5512",
+      "surfaceM2": "150.0",
+      "budget": "25000000",
+      "statut": "EN_COURS",
+      "emailUtilisateur": "jean.dupont@example.com"
+    }
+  }
+}
