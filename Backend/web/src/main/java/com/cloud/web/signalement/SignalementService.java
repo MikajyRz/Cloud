@@ -8,15 +8,48 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.cloud.web.utilisateur.UtilisateurRepository;
+import com.cloud.web.utilisateur.Utilisateur;
+
 import java.util.stream.Collectors;
 
 @Service
 public class SignalementService {
 
     private final SignalementRepository signalementRepository;
+    private final UtilisateurRepository utilisateurRepository;
 
-    public SignalementService(SignalementRepository signalementRepository) {
+    public SignalementService(SignalementRepository signalementRepository, UtilisateurRepository utilisateurRepository) {
         this.signalementRepository = signalementRepository;
+        this.utilisateurRepository = utilisateurRepository;
+    }
+
+    // Public pour afficher sur la carte
+    @Transactional
+    public SignalementDto createSignalement(CreateSignalementRequest request, String userEmail) {
+        Utilisateur utilisateur = utilisateurRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'email: " + userEmail));
+
+        Signalement signalement = new Signalement();
+        signalement.setTitre(request.titre());
+        signalement.setDescription(request.description());
+        signalement.setLatitude(request.latitude());
+        signalement.setLongitude(request.longitude());
+        signalement.setSurfaceM2(request.surfaceM2());
+        signalement.setBudget(request.budget());
+        signalement.setUtilisateur(utilisateur);
+
+        if (request.imageUrls() != null) {
+            for (String imageUrl : request.imageUrls()) {
+                SignalementImage image = new SignalementImage();
+                image.setImageUrl(imageUrl);
+                image.setSignalement(signalement);
+                signalement.getImages().add(image);
+            }
+        }
+
+        Signalement savedSignalement = signalementRepository.save(signalement);
+        return toDto(savedSignalement);
     }
 
     // Public pour afficher sur la carte
@@ -111,6 +144,10 @@ public class SignalementService {
     }
 
     private SignalementDto toDto(Signalement signalement) {
+        List<SignalementImageDto> imageDtos = signalement.getImages().stream()
+            .map(image -> new SignalementImageDto(image.getId(), image.getImageUrl()))
+            .collect(Collectors.toList());
+
         return new SignalementDto(
             signalement.getId(),
             signalement.getTitre(),
@@ -124,7 +161,8 @@ public class SignalementService {
             signalement.getDateSignalement(),
             signalement.getEntreprise() != null ? signalement.getEntreprise().getNom() : null,
             signalement.getDateEnCours(),
-            signalement.getDateTermine()
+            signalement.getDateTermine(),
+            imageDtos
         );
     }
 }

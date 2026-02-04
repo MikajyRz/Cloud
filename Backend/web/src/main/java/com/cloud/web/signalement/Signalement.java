@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "signalement")
@@ -54,6 +56,9 @@ public class Signalement {
     @ManyToOne
     @JoinColumn(name = "id_entreprise")
     private Entreprise entreprise;
+
+    @OneToMany(mappedBy = "signalement", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SignalementImage> images = new ArrayList<>();
 
     // Getters and Setters
     public UUID getId() {
@@ -158,5 +163,13 @@ public class Signalement {
 
     public void setEntreprise(Entreprise entreprise) {
         this.entreprise = entreprise;
+    }
+
+    public List<SignalementImage> getImages() {
+        return images;
+    }
+
+    public void setImages(List<SignalementImage> images) {
+        this.images = images;
     }
 }

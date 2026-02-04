@@ -83,6 +83,30 @@
                 </ion-item>
               </div>
 
+              <div class="modal-input-wrapper">
+                <ion-icon :icon="cubeOutline" class="input-icon" />
+                <ion-item>
+                  <ion-input
+                    v-model="newReportSurface"
+                    placeholder="Surface (m²)"
+                    type="number"
+                    label-placement="stacked"
+                  />
+                </ion-item>
+              </div>
+
+              <div class="modal-input-wrapper">
+                <ion-icon :icon="walletOutline" class="input-icon" />
+                <ion-item>
+                  <ion-input
+                    v-model="newReportBudget"
+                    placeholder="Budget estimé (€)"
+                    type="number"
+                    label-placement="stacked"
+                  />
+                </ion-item>
+              </div>
+
               <div class="modal-input-wrapper image-upload-wrapper">
                 <input type="file" @change="onFileChange" accept="image/*" ref="fileInput" style="display: none" multiple />
                 <ion-button fill="clear" @click="triggerFileInput">
@@ -154,6 +178,8 @@ import {
   navigateOutline,
   camera as cameraIcon,
   closeCircleOutline as closeIcon,
+  cubeOutline,
+  walletOutline,
 } from 'ionicons/icons'
 import { Geolocation } from '@capacitor/geolocation'
 import { useAuth } from '@/composables/useAuth'
@@ -210,6 +236,9 @@ const isCreateOpen = ref(false)
 const createLatLng = ref<L.LatLng | null>(null)
 const newReportTitle = ref('')
 const newReportDescription = ref('')
+const newReportSurface = ref<number | null>(null)
+const newReportBudget = ref<number | null>(null)
+const newReportFiles = ref<File[]>([])
 const newReportImagePreviews = ref<string[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -223,18 +252,23 @@ const triggerFileInput = () => {
 const onFileChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files) {
+    const filesArray = Array.from(target.files)
+    newReportFiles.value.push(...filesArray)
+
+    // Generate previews
     try {
-      const promises = Array.from(target.files).map(file => imageToBase64(file));
-      const base64Strings = await Promise.all(promises);
-      newReportImagePreviews.value.push(...base64Strings.filter(s => s !== null) as string[]);
+      const promises = filesArray.map(file => imageToBase64(file))
+      const base64Strings = await Promise.all(promises)
+      newReportImagePreviews.value.push(...base64Strings.filter(s => s !== null) as string[])
     } catch (e) {
-      console.error('Error converting images to Base64:', e)
-      error.value = 'Erreur lors du traitement des images.'
+      console.error('Error generating image previews:', e)
+      error.value = 'Erreur lors de la génération des aperçus.'
     }
   }
 }
 
 const removeImage = (index: number) => {
+  newReportFiles.value.splice(index, 1)
   newReportImagePreviews.value.splice(index, 1)
 }
 
@@ -246,6 +280,8 @@ const handleCreateReport = async () => {
     description: newReportDescription.value,
     lat: createLatLng.value.lat,
     lng: createLatLng.value.lng,
+    surfaceM2: newReportSurface.value,
+    budget: newReportBudget.value,
   })
 
   error.value = null
@@ -256,7 +292,9 @@ const handleCreateReport = async () => {
       description: newReportDescription.value.trim(),
       latitude: createLatLng.value.lat,
       longitude: createLatLng.value.lng,
-      imageUrls: newReportImagePreviews.value,
+      surfaceM2: newReportSurface.value,
+      budget: newReportBudget.value,
+      images: newReportFiles.value,
     })
     isCreateOpen.value = false
   } catch (e) {
@@ -271,6 +309,9 @@ watch(isCreateOpen, (isOpen) => {
   if (!isOpen) {
     newReportTitle.value = ''
     newReportDescription.value = ''
+    newReportSurface.value = null
+    newReportBudget.value = null
+    newReportFiles.value = []
     newReportImagePreviews.value = []
     if (fileInput.value) {
       fileInput.value.value = ''
