@@ -333,9 +333,7 @@ onMounted(() => {
 
   const antananarivoBounds = L.latLngBounds(L.latLng(-19.1, 47.3), L.latLng(-18.7, 47.7))
 
-  const tileUrl =
-    (import.meta.env.VITE_MOBILE_TILE_URL as string | undefined) ??
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
   map = L.map(mapEl.value, {
     zoomControl: true,

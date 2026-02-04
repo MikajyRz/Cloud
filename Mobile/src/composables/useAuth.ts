@@ -1,157 +1,109 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  type User 
+} from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db } from '@/firebase'
+import { db, auth } from '@/firebase'
 
-const currentUser = ref<any | null>(null)
+// State should be defined outside the composable to be a singleton
+const currentUser = ref<User | null>(null)
 const initialized = ref(false)
-const authToken = ref<string | null>(localStorage.getItem('auth_token'))
 
-interface UtilisateurFirestore {
-  email: string
-  nom?: string
-  prenom?: string
-  role?: string
-  telephone?: string
-}
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8180'
+// Listener for auth state changes
+const unsub = onAuthStateChanged(auth, (user) => {
+  currentUser.value = user
+  initialized.value = true
+})
 
 export function useAuth() {
-  const isAuthenticated = () => !!authToken.value
+  onUnmounted(() => {
+    unsub()
+  })
 
   const login = async (email: string, password: string) => {
     try {
-      // Appeler l'API backend pour se connecter
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Erreur login:', errorText)
-        throw new Error(errorText || 'Email ou mot de passe incorrect')
-      }
-
-      const data = await response.json()
-      authToken.value = data.token
-      localStorage.setItem('auth_token', data.token)
-
-      // Récupérer les informations de l'utilisateur
-      const meResponse = await fetch(`${API_URL}/api/utilisateurs/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.token}`,
-        },
-      })
-
-      if (meResponse.ok) {
-        currentUser.value = await meResponse.json()
-      }
-
-      initialized.value = true
-      return currentUser.value
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      currentUser.value = userCredential.user
+      return userCredential.user
     } catch (error: any) {
-      console.error('Erreur complète:', error)
-      throw new Error(error.message || 'Erreur de connexion')
+      console.error('Firebase login error:', error)
+      throw new Error(mapFirebaseAuthError(error.code))
     }
   }
 
   const register = async (email: string, password: string, nom?: string, prenom?: string) => {
     try {
-      // Créer le nom complet
-      const fullName = `${prenom || ''} ${nom || ''}`.trim()
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      currentUser.value = userCredential.user
 
-      // Appeler l'API backend pour l'inscription
-      const response = await fetch(`${API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          fullName: fullName || email 
-        }),
+      // Save additional user info to Firestore
+      const userDocRef = doc(db, 'utilisateurs', userCredential.user.uid)
+      await setDoc(userDocRef, {
+        email: userCredential.user.email,
+        nom: nom || '',
+        prenom: prenom || '',
+        role: 'user', // default role
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || 'Erreur lors de l\'inscription')
-      }
-
-      // Après l'inscription, se connecter automatiquement
-      return await login(email, password)
+      return userCredential.user
     } catch (error: any) {
-      throw new Error(error.message || 'Erreur lors de l\'inscription')
+      console.error('Firebase register error:', error)
+      throw new Error(mapFirebaseAuthError(error.code))
     }
   }
 
   const logout = async () => {
-    authToken.value = null
-    currentUser.value = null
-    localStorage.removeItem('auth_token')
+    try {
+      await signOut(auth)
+      currentUser.value = null
+    } catch (error) {
+      console.error('Firebase logout error:', error)
+    }
   }
 
-  const getCurrentUser = async () => {
-    if (!authToken.value) {
-      initialized.value = true
-      return null
-    }
-
-    if (currentUser.value) {
-      return currentUser.value
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/utilisateurs/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken.value}`,
-        },
-      })
-
-      if (response.ok) {
-        currentUser.value = await response.json()
+  const getCurrentUser = () => {
+    return new Promise((resolve) => {
+      if (initialized.value) {
+        resolve(currentUser.value)
       } else {
-        // Token invalide, déconnexion
-        await logout()
+        const unsub = onAuthStateChanged(auth, (user) => {
+          unsub()
+          resolve(user)
+        })
       }
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
-      await logout()
-    }
-
-    initialized.value = true
-    return currentUser.value
-  }
-
-  const getUserFromFirestore = async (email: string): Promise<UtilisateurFirestore | null> => {
-    try {
-      const emailKey = email.replace(/\./g, '_')
-      const userDocRef = doc(db, 'utilisateurs', emailKey)
-      const userDoc = await getDoc(userDocRef)
-      
-      if (userDoc.exists()) {
-        return userDoc.data() as UtilisateurFirestore
-      }
-      return null
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
-      return null
-    }
+    })
   }
 
   return {
     currentUser,
     initialized,
-    authToken,
-    isAuthenticated,
     login,
     register,
     logout,
     getCurrentUser,
-    getUserFromFirestore,
+  }
+}
+
+function mapFirebaseAuthError(code: string): string {
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'Adresse e-mail invalide.'
+    case 'auth/user-disabled':
+      return 'Ce compte a été désactivé.'
+    case 'auth/user-not-found':
+      return 'Aucun utilisateur trouvé avec cet e-mail.'
+    case 'auth/wrong-password':
+      return 'Mot de passe incorrect.'
+    case 'auth/email-already-in-use':
+      return 'Cette adresse e-mail est déjà utilisée.'
+    case 'auth/weak-password':
+      return 'Le mot de passe doit comporter au moins 6 caractères.'
+    default:
+      return 'Une erreur est survenue. Veuillez réessayer.'
   }
 }
