@@ -13,6 +13,7 @@ type Stats = {
   nombreEnCours: number
   nombreTermine: number
   nombreAnnule: number
+  delaiMoyenJours: number | null
 }
 
 export default function StatistiquesPage() {
@@ -29,30 +30,21 @@ export default function StatistiquesPage() {
               label: 'Nouveau',
               count: stats.nombreNouveau,
               barClass: 'progress__bar',
-            },
-            {
-              key: 'EN_ATTENTE',
-              label: 'En attente',
-              count: stats.nombreEnAttente,
-              barClass: 'progress__bar progress__bar--warning',
+              progress: 0,
             },
             {
               key: 'EN_COURS',
               label: 'En cours',
               count: stats.nombreEnCours,
               barClass: 'progress__bar progress__bar--warning',
+              progress: 50,
             },
             {
               key: 'TERMINE',
               label: 'Terminé',
               count: stats.nombreTermine,
               barClass: 'progress__bar progress__bar--success',
-            },
-            {
-              key: 'ANNULE',
-              label: 'Annulé',
-              count: stats.nombreAnnule,
-              barClass: 'progress__bar progress__bar--danger',
+              progress: 100,
             },
           ]
         : [],
@@ -144,7 +136,7 @@ export default function StatistiquesPage() {
                     <div key={r.key} className="row" style={{ justifyContent: 'space-between' }}>
                       <div className="row" style={{ gap: 12 }}>
                         <span className="badge">{r.label}</span>
-                        <span className="muted">{pct.toFixed(1)}%</span>
+                        <span className="muted">{pct.toFixed(1)}% • {r.progress}% avancement</span>
                       </div>
                       <div className="row" style={{ gap: 12 }}>
                         <div className="progress">
@@ -155,6 +147,58 @@ export default function StatistiquesPage() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card__body">
+              <div className="card__title">Délais de traitement</div>
+              <div className="card__subtitle">Analyse des durées moyennes par étape</div>
+
+              <div style={{ marginTop: 14 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Étape</th>
+                      <th>Avancement</th>
+                      <th>Nombre</th>
+                      <th>Délai moyen estimé</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <span className="badge">Nouveau</span>
+                      </td>
+                      <td>0%</td>
+                      <td>{stats.nombreNouveau}</td>
+                      <td className="muted">En attente de traitement</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span className="badge badge--warning">En cours</span>
+                      </td>
+                      <td>50%</td>
+                      <td>{stats.nombreEnCours}</td>
+                      <td className="muted">Travaux en cours</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span className="badge badge--success">Terminé</span>
+                      </td>
+                      <td>100%</td>
+                      <td>{stats.nombreTermine}</td>
+                      <td>
+                        {stats.delaiMoyenJours !== null ? (
+                          <strong>{stats.delaiMoyenJours.toFixed(1)} jours</strong>
+                        ) : (
+                          <span className="muted">Aucune donnée</span>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

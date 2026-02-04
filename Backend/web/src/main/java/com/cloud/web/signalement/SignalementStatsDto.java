@@ -11,5 +11,6 @@ public record SignalementStatsDto(
     long nombreEnAttente,
     long nombreEnCours,
     long nombreTermine,
-    long nombreAnnule
+    long nombreAnnule,
+    Double delaiMoyenJours
 ) {}

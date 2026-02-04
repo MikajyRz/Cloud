@@ -41,6 +41,12 @@ public class Signalement {
     @Column(name = "date_signalement")
     private LocalDateTime dateSignalement = LocalDateTime.now();
 
+    @Column(name = "date_en_cours")
+    private LocalDateTime dateEnCours;
+
+    @Column(name = "date_termine")
+    private LocalDateTime dateTermine;
+
     @ManyToOne
     @JoinColumn(name = "id_utilisateur")
     private Utilisateur utilisateur;
@@ -120,6 +126,22 @@ public class Signalement {
 
     public void setDateSignalement(LocalDateTime dateSignalement) {
         this.dateSignalement = dateSignalement;
+    }
+
+    public LocalDateTime getDateEnCours() {
+        return dateEnCours;
+    }
+
+    public void setDateEnCours(LocalDateTime dateEnCours) {
+        this.dateEnCours = dateEnCours;
+    }
+
+    public LocalDateTime getDateTermine() {
+        return dateTermine;
+    }
+
+    public void setDateTermine(LocalDateTime dateTermine) {
+        this.dateTermine = dateTermine;
     }
 
     public Utilisateur getUtilisateur() {

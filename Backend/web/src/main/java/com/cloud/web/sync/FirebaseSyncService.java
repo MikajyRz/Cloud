@@ -2,6 +2,7 @@ package com.cloud.web.sync;
 
 import com.cloud.web.signalement.Signalement;
 import com.cloud.web.signalement.SignalementRepository;
+import com.cloud.web.signalement.StatutTravaux;
 import com.cloud.web.sync.dto.SignalementSyncDto;
 import com.cloud.web.sync.dto.SyncResultDto;
 import com.cloud.web.sync.dto.UtilisateurSyncDto;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -28,15 +30,18 @@ public class FirebaseSyncService {
     private final FirebaseSyncRepository syncRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final SignalementRepository signalementRepository;
+    private final SyncPersistenceService syncPersistenceService;
     private Firestore firestore;
 
     public FirebaseSyncService(
             FirebaseSyncRepository syncRepository,
             UtilisateurRepository utilisateurRepository,
-            SignalementRepository signalementRepository) {
+            SignalementRepository signalementRepository,
+            SyncPersistenceService syncPersistenceService) {
         this.syncRepository = syncRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.signalementRepository = signalementRepository;
+        this.syncPersistenceService = syncPersistenceService;
         // Firestore sera initialisé au premier appel
     }
     
@@ -170,7 +175,6 @@ public class FirebaseSyncService {
     /**
      * PULL: Récupérer des signalements depuis Firestore vers PostgreSQL
      */
-    @Transactional
     public int pullSignalementsFromFirebase() throws InterruptedException, ExecutionException {
         if (!isFirebaseAvailable()) {
             throw new IllegalStateException("Firebase n'est pas configuré. Téléchargez firebase-admin.json");
@@ -183,25 +187,45 @@ public class FirebaseSyncService {
         System.out.println("DEBUG: Trouvé " + documents.size() + " signalement(s) dans Firestore");
 
         int count = 0;
+        int errorCount = 0;
         for (QueryDocumentSnapshot document : documents) {
             try {
+                // Valider que l'ID est un UUID valide
+                String docId = document.getId();
+                try {
+                    UUID.fromString(docId);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("⚠️ Erreur signalement " + docId + " : Invalid UUID string: " + docId);
+                    errorCount++;
+                    continue; // Ignorer les documents avec ID invalide
+                }
+                
                 SignalementSyncDto dto = document.toObject(SignalementSyncDto.class);
-                Signalement sig = dto.toEntity(utilisateurRepository);
-                signalementRepository.save(sig);
-
-                FirebaseSync sync = new FirebaseSync();
-                sync.setTypeDonnee("SIGNALEMENT");
-                sync.setIdReference(sig.getId());
-                sync.setSens(SyncType.PULL);
-                sync.setDateSync(LocalDateTime.now());
-                syncRepository.save(sync);
-                count++;
+                UUID sigId = UUID.fromString(docId);
+                
+                // Sauvegarder dans une transaction séparée
+                if (saveSignalementFromFirestore(sigId, dto)) {
+                    count++;
+                }
             } catch (Exception e) {
-                System.err.println("Erreur lors de la lecture du signalement " + document.getId() + ": " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("⚠️ Erreur signalement " + document.getId() + " : " + e.getMessage());
+                errorCount++;
+                // Continue pour traiter les autres documents
             }
         }
+        System.out.println("✅ Sync terminé : " + count + " signalement(s) synchronisé(s), " + errorCount + " erreur(s)");
         return count;
+    }
+
+    public boolean saveSignalementFromFirestore(UUID sigId, SignalementSyncDto dto) {
+        try {
+            // Déléguer au service de persistence qui gère la transaction
+            return syncPersistenceService.saveSignalement(sigId, dto, utilisateurRepository);
+        } catch (Exception e) {
+            System.err.println("⚠️ Erreur sauvegarde signalement " + sigId + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
@@ -262,7 +286,6 @@ public class FirebaseSyncService {
      * 
      * @return SyncResultDto avec statistiques et logs de la synchronisation
      */
-    @Transactional
     public SyncResultDto synchronizeBidirectional() throws ExecutionException, InterruptedException {
         SyncResultDto result = new SyncResultDto();
         
@@ -432,7 +455,7 @@ public class FirebaseSyncService {
                     dto.setId(idStr); // S'assurer que l'ID est préservé
                     
                     Signalement newSignalement = dto.toEntity(utilisateurRepository);
-                    signalementRepository.save(newSignalement);
+                    syncPersistenceService.insertSignalement(newSignalement);
                     
                     result.getSignalements().incrementNouveaux();
                     result.addLog("➕ Nouveau signalement importé : " + idStr);

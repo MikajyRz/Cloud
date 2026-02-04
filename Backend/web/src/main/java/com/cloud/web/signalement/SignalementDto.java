@@ -15,5 +15,7 @@ public record SignalementDto(
     String statut,
     String emailUtilisateur,
     LocalDateTime dateSignalement,
-    String nomEntreprise
+    String nomEntreprise,
+    LocalDateTime dateEnCours,
+    LocalDateTime dateTermine
 ) {}
