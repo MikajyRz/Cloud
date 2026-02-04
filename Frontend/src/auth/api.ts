@@ -135,7 +135,7 @@ export async function listPublicReportsApi(): Promise<PublicReportResponse[]> {
   })
 }
 
-export async function unlockUserApi(token: string, email: string): Promise<void> {
+export async function unlockUtilisateurApi(token: string, email: string): Promise<void> {
   await http<void>('/api/auth/unlock', {
     method: 'POST',
     token,
@@ -187,5 +187,29 @@ export async function updateManagerReportApi(
     method: 'PATCH',
     token,
     body: JSON.stringify(req),
+  })
+}
+
+export type SyncResultDto = {
+  success: boolean
+  message: string
+  logs: string[]
+  errors: string[]
+  utilisateurs: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+  signalements: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+}
+
+export async function synchronizeBidirectionalApi(token: string): Promise<SyncResultDto> {
+  return http<SyncResultDto>('/api/sync/all', {
+    method: 'POST',
+    token,
   })
 }

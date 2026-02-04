@@ -160,7 +160,7 @@ docker-compose up tileserver -d
 
 ```bash
 # Vérifier que le tileserver répond
-curl http://localhost:8081/styles.json
+curl http://localhost:8081/config.json
 
 # Vérifier qu'une tuile est servie
 curl http://localhost:8081/styles/basic/11/1294/1133.png -o test.png
