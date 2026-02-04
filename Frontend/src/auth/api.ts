@@ -12,6 +12,62 @@ export type UserMeResponse = {
   role: UserRole
 }
 
+export type LockedUserResponse = {
+  email: string
+  nom: string | null
+  prenom: string | null
+  role: UserRole
+  tentativesEchouees: number
+}
+
+export type StatutTravaux = 'NOUVEAU' | 'EN_COURS' | 'TERMINE'
+
+export type ManagerReportResponse = {
+  id: string
+  firestoreId: string | null
+  titre: string | null
+  description: string | null
+  latitude: number | null
+  longitude: number | null
+  surfaceM2: number | null
+  budget: number | null
+  statut: StatutTravaux | null
+  dateSignalement: string | null
+  idUtilisateur: string | null
+  idEntreprise: string | null
+}
+
+export type UpdateReportRequest = {
+  surfaceM2: number | null
+  budget: number | null
+  idEntreprise: string | null
+  statut: StatutTravaux | null
+}
+
+export type EntrepriseResponse = {
+  id: string
+  nom: string
+}
+
+export type SyncReportsResponse = {
+  fetched: number
+  inserted: number
+  updated: number
+  pushed: number
+  collection: string
+}
+
+export type PublicReportResponse = {
+  id: string
+  latitude: number | null
+  longitude: number | null
+  surfaceM2: number | null
+  budget: number | null
+  statut: StatutTravaux | null
+  dateSignalement: string | null
+  entrepriseNom: string | null
+}
+
 type LoginRequest = {
   email: string
   password: string
@@ -73,7 +129,13 @@ export async function signupApi(req: SignupRequest): Promise<void> {
   })
 }
 
-export async function unlockUtilisateurApi(token: string, email: string): Promise<void> {
+export async function listPublicReportsApi(): Promise<PublicReportResponse[]> {
+  return http<PublicReportResponse[]>('/api/reports', {
+    method: 'GET',
+  })
+}
+
+export async function unlockUserApi(token: string, email: string): Promise<void> {
   await http<void>('/api/auth/unlock', {
     method: 'POST',
     token,
@@ -82,32 +144,48 @@ export async function unlockUtilisateurApi(token: string, email: string): Promis
 }
 
 export async function meApi(token: string): Promise<UserMeResponse> {
-  return http<UserMeResponse>('/api/utilisateurs/me', {
+  return http<UserMeResponse>('/api/users/me', {
     method: 'GET',
     token,
   })
 }
 
-export type SyncResultDto = {
-  success: boolean
-  message: string
-  utilisateurs: {
-    nouveauxDepuisFirestore: number
-    misAJourVersFirestore: number
-    total: number
-  }
-  signalements: {
-    nouveauxDepuisFirestore: number
-    misAJourVersFirestore: number
-    total: number
-  }
-  logs: string[]
-  errors: string[]
-}
-
-export async function synchronizeBidirectionalApi(token: string): Promise<SyncResultDto> {
-  return http<SyncResultDto>('/api/sync/synchronize', {
+export async function syncReportsApi(token: string): Promise<SyncReportsResponse> {
+  return http<SyncReportsResponse>('/api/manager/sync-reports', {
     method: 'POST',
     token,
+  })
+}
+
+export async function listLockedUsersApi(token: string): Promise<LockedUserResponse[]> {
+  return http<LockedUserResponse[]>('/api/manager/locked-users', {
+    method: 'GET',
+    token,
+  })
+}
+
+export async function listManagerReportsApi(token: string): Promise<ManagerReportResponse[]> {
+  return http<ManagerReportResponse[]>('/api/manager/reports', {
+    method: 'GET',
+    token,
+  })
+}
+
+export async function listEntreprisesApi(token: string): Promise<EntrepriseResponse[]> {
+  return http<EntrepriseResponse[]>('/api/manager/entreprises', {
+    method: 'GET',
+    token,
+  })
+}
+
+export async function updateManagerReportApi(
+  token: string,
+  id: string,
+  req: UpdateReportRequest,
+): Promise<ManagerReportResponse> {
+  return http<ManagerReportResponse>(`/api/manager/reports/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(req),
   })
 }

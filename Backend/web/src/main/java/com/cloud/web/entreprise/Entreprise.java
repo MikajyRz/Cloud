@@ -1,6 +1,12 @@
 package com.cloud.web.entreprise;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.util.UUID;
 
 @Entity
@@ -9,15 +15,15 @@ public class Entreprise {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false)
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(name = "nom", nullable = false, unique = true, length = 150)
     private String nom;
 
-    @Column(length = 100)
+    @Column(name = "contact", length = 100)
     private String contact;
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

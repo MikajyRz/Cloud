@@ -4,7 +4,6 @@ import {
   collection,
   type DocumentData,
   onSnapshot,
-  orderBy,
   query,
   type QueryDocumentSnapshot,
   type QuerySnapshot,
@@ -13,8 +12,7 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '@/firebase'
+import { db } from '@/firebase'
 import { useAuth } from '@/composables/useAuth'
 
 export type ReportDoc = {
@@ -23,10 +21,12 @@ export type ReportDoc = {
   description: string
   latitude: number
   longitude: number
-  uid: string
-  userEmail?: string | null
+  uid?: string
+  userId?: string
+  userEmail?: string
   createdAt?: unknown
-  photoUrl?: string | null
+  imageUrls?: string[]
+  status: string
 }
 
 type CreateReportInput = {
@@ -34,8 +34,7 @@ type CreateReportInput = {
   description: string
   latitude: number
   longitude: number
-  photo?: Blob
-  photoName?: string
+  imageUrls: string[]
 }
 
 function getCollectionName() {
@@ -48,33 +47,8 @@ export function useReports(firestore: Firestore = db) {
 
   const createReport = async (input: CreateReportInput) => {
     const u = (await getCurrentUser()) ?? currentUser.value
-    if (!u) throw new Error('Utilisateur non connecté')
+    if (!u) throw new Error('Not authenticated')
 
-    let photoUrl: string | null = null
-
-    // Upload photo si présente
-    if (input.photo && input.photoName) {
-      const fileRef = storageRef(storage, `signalements/${u.uid}/${input.photoName}`)
-
-      const uploadTask = uploadBytesResumable(fileRef, input.photo, {
-        contentType: 'image/jpeg',
-      })
-
-      // On attend la fin de l'upload
-      await new Promise<void>((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          null,
-          reject,
-          async () => {
-            photoUrl = await getDownloadURL(uploadTask.snapshot.ref)
-            resolve()
-          }
-        )
-      })
-    }
-
-    // Enregistrement dans Firestore
     await addDoc(collectionRef.value, {
       titre: input.titre,
       description: input.description,
@@ -83,35 +57,51 @@ export function useReports(firestore: Firestore = db) {
       uid: u.uid,
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
-      photoUrl,
+      imageUrls: input.imageUrls,
+      status: 'NOUVEAU',
     })
   }
 
   const subscribeReports = (
     opts: { mineOnly: boolean },
-    cb: (rows: ReportDoc[]) => void
+    cb: (rows: ReportDoc[]) => void,
+    onError?: (err: unknown) => void,
   ): Unsubscribe => {
-    const base = [orderBy('createdAt', 'desc')]
+    const uid = currentUser.value?.uid
+    const email = currentUser.value?.email ?? undefined
 
-    if (opts.mineOnly && !currentUser.value?.uid) {
-      cb([])
-      return () => {}
-    }
+    const q = !opts.mineOnly
+      ? query(collectionRef.value)
+      : uid
+        ? query(collectionRef.value, where('uid', '==', uid))
+        : email
+          ? query(collectionRef.value, where('userEmail', '==', email))
+          : query(collectionRef.value, where('uid', '==', '__no_user__'))
 
-    const q = opts.mineOnly
-      ? query(collectionRef.value, where('uid', '==', currentUser.value?.uid ?? ''), ...base)
-      : query(collectionRef.value, ...base)
+    return onSnapshot(
+      q,
+      (snap: QuerySnapshot<DocumentData>) => {
+        const rawRows: ReportDoc[] = snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => {
+          const data = d.data() as Omit<ReportDoc, 'id'>
+          return {
+            id: d.id,
+            ...data,
+          }
+        })
 
-    return onSnapshot(q, (snap: QuerySnapshot<DocumentData>) => {
-      const rows: ReportDoc[] = snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => {
-        const data = d.data() as Omit<ReportDoc, 'id'>
-        return {
-          id: d.id,
-          ...data,
-        }
-      })
-      cb(rows)
-    })
+        // Sort client-side (avoids composite index). Firestore Timestamp has toMillis().
+        const sorted = [...rawRows].sort((a, b) => {
+          const ta = (a.createdAt as any)?.toMillis?.() ?? 0
+          const tb = (b.createdAt as any)?.toMillis?.() ?? 0
+          return tb - ta
+        })
+
+        cb(sorted)
+      },
+      (err: unknown) => {
+        onError?.(err)
+      },
+    )
   }
 
   return {

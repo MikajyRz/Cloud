@@ -4,154 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8180'
-
-type Signalement = {
-  id: string
-  titre: string
-  description: string
-  latitude: number
-  longitude: number
-  surfaceM2?: number
-  budget?: number
-  statut: string
-  emailUtilisateur?: string
-  dateSignalement?: string
-  nomEntreprise?: string
-}
+import { listPublicReportsApi, type PublicReportResponse, type StatutTravaux } from '@/auth/api'
+import { FiMap, FiLogOut, FiLogIn, FiUserPlus, FiSettings, FiUser } from 'react-icons/fi'
 
 export default function MapPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const popupRef = useRef<maplibregl.Popup | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { role, me, logout, token } = useAuth()
-
-  const getMarkerColor = (statut: string) => {
-    switch (statut) {
-      case 'NOUVEAU': return '#3498db' // Bleu
-      case 'EN_ATTENTE': return '#f39c12' // Orange
-      case 'EN_COURS': return '#e67e22' // Orange foncé
-      case 'TERMINE': return '#27ae60' // Vert
-      case 'ANNULE': return '#e74c3c' // Rouge
-      default: return '#95a5a6' // Gris
-    }
-  }
-
-  const getMarkerLabel = (statut: string) => {
-    switch (statut) {
-      case 'NOUVEAU': return 'N'
-      case 'EN_ATTENTE': return 'A'
-      case 'EN_COURS': return 'C'
-      case 'TERMINE': return 'T'
-      case 'ANNULE': return 'X'
-      default: return '•'
-    }
-  }
-
-  const loadSignalements = async () => {
-    try {
-      const headers: HeadersInit = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch(`${API_BASE}/api/signalements`, { headers })
-      
-      if (!response.ok) {
-        console.error('Erreur lors du chargement des signalements')
-        return
-      }
-
-      const data = await response.json()
-      displaySignalementsOnMap(data)
-    } catch (err) {
-      console.error('Erreur:', err)
-    }
-  }
-
-  const displaySignalementsOnMap = (sigs: Signalement[]) => {
-    if (!mapRef.current) return
-
-    sigs.forEach((sig) => {
-      const el = document.createElement('div')
-      el.style.width = '32px'
-      el.style.height = '32px'
-      el.style.borderRadius = '50%'
-      el.style.backgroundColor = getMarkerColor(sig.statut)
-      el.style.border = '3px solid white'
-      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)'
-      el.style.cursor = 'pointer'
-      el.style.display = 'flex'
-      el.style.alignItems = 'center'
-      el.style.justifyContent = 'center'
-      el.style.fontSize = '12px'
-      el.style.fontWeight = '700'
-      el.style.color = 'white'
-      el.textContent = getMarkerLabel(sig.statut)
-
-      const formatDate = (dateStr?: string) => {
-        if (!dateStr) return '-'
-        const date = new Date(dateStr)
-        return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
-      }
-
-      const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`
-        <div style="padding: 12px; min-width: 250px;">
-          <h3 style="margin: 0 0 10px; font-size: 15px; font-weight: 600; color: #2c3e50;">${sig.titre}</h3>
-          <p style="margin: 0 0 10px; font-size: 13px; color: #666; line-height: 1.4;">${sig.description}</p>
-          
-          <div style="font-size: 12px; color: #555; line-height: 1.8;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-weight: 600;">📅 Date:</span>
-              <span>${formatDate(sig.dateSignalement)}</span>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-              <span style="font-weight: 600;">📊 Statut:</span>
-              <span style="padding: 3px 8px; background: ${getMarkerColor(sig.statut)}; color: white; border-radius: 4px; font-size: 11px; font-weight: 500;">
-                ${sig.statut.replace('_', ' ')}
-              </span>
-            </div>
-            
-            ${sig.surfaceM2 ? `
-              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-                <span style="font-weight: 600;">📏 Surface:</span>
-                <span>${sig.surfaceM2} m²</span>
-              </div>
-            ` : ''}
-            
-            ${sig.budget ? `
-              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-                <span style="font-weight: 600;">💰 Budget:</span>
-                <span>${sig.budget.toLocaleString('fr-FR')} €</span>
-              </div>
-            ` : ''}
-            
-            ${sig.nomEntreprise ? `
-              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-                <span style="font-weight: 600;">🏢 Entreprise:</span>
-                <span>${sig.nomEntreprise}</span>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `)
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([sig.longitude, sig.latitude])
-        .setPopup(popup)
-        .addTo(mapRef.current!)
-
-      // Afficher les infos au survol (et pas uniquement au clic)
-      el.addEventListener('mouseenter', () => {
-        if (!marker.getPopup().isOpen()) marker.togglePopup()
-      })
-      el.addEventListener('mouseleave', () => {
-        if (marker.getPopup().isOpen()) marker.togglePopup()
-      })
-    })
-  }
+  const [reports, setReports] = useState<PublicReportResponse[]>([])
+  const { role, me, logout } = useAuth()
 
   useEffect(() => {
     if (!mapContainerRef.current) return
@@ -183,7 +45,7 @@ export default function MapPage() {
           container: mapContainerRef.current!,
           style: styleUrl,
           center: [47.5079, -18.8792],
-          zoom: 11,
+          zoom: 12,
         })
 
         map.on('error', (e: maplibregl.ErrorEvent) => {
@@ -191,12 +53,111 @@ export default function MapPage() {
           setError(msg)
         })
 
-        map.addControl(new maplibregl.NavigationControl(), 'top-right')
+        map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
         mapRef.current = map
 
-        // Charger les signalements après que la carte soit prête
+        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
+        popupRef.current = popup
+
+        const loadReports = async () => {
+          const reports = await listPublicReportsApi()
+          setReports(reports)
+          const features = reports
+            .filter((r) => r.longitude != null && r.latitude != null)
+            .map((r) => ({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [r.longitude, r.latitude],
+              },
+              properties: {
+                id: r.id,
+                statut: r.statut ?? null,
+                dateSignalement: r.dateSignalement ?? null,
+                surfaceM2: r.surfaceM2 ?? null,
+                budget: r.budget ?? null,
+                entrepriseNom: r.entrepriseNom ?? null,
+              },
+            }))
+
+          const sourceData = {
+            type: 'FeatureCollection',
+            features,
+          } as const
+
+          if (map.getSource('reports')) {
+            ;(map.getSource('reports') as maplibregl.GeoJSONSource).setData(sourceData)
+            return
+          }
+
+          map.addSource('reports', {
+            type: 'geojson',
+            data: sourceData,
+          })
+
+          map.addLayer({
+            id: 'reports-circle',
+            type: 'circle',
+            source: 'reports',
+            paint: {
+              'circle-radius': 7,
+              'circle-color': '#ff2d2d',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
+              'circle-opacity': 0.9,
+            },
+          })
+
+          const formatStatut = (s: unknown): StatutTravaux | null => {
+            if (s === 'NOUVEAU' || s === 'EN_COURS' || s === 'TERMINE') return s
+            return null
+          }
+
+          const formatNumber = (v: unknown) => {
+            if (v == null || v === '') return '—'
+            const n = typeof v === 'number' ? v : Number(v)
+            return Number.isFinite(n) ? String(n) : '—'
+          }
+
+          const formatDate = (v: unknown) => {
+            if (!v) return '—'
+            const s = String(v)
+            return s.length > 19 ? s.slice(0, 19).replace('T', ' ') : s.replace('T', ' ')
+          }
+
+          map.on('mousemove', 'reports-circle', (e) => {
+            map.getCanvas().style.cursor = 'pointer'
+            const f = e.features?.[0]
+            if (!f) return
+
+            const p = (f.properties ?? {}) as unknown as PublicReportResponse & {
+              statut?: string
+            }
+
+            const statut = formatStatut((p as any).statut)
+            const html = `
+              <div style="font-size:12px; min-width: 220px">
+                <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
+                <div><strong>Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
+                <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
+                <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
+              </div>
+            `
+
+            popup.setLngLat(e.lngLat).setHTML(html).addTo(map)
+          })
+
+          map.on('mouseleave', 'reports-circle', () => {
+            map.getCanvas().style.cursor = ''
+            popup.remove()
+          })
+        }
+
         map.on('load', () => {
-          loadSignalements()
+          void loadReports().catch((e) => {
+            setError(e instanceof Error ? e.message : String(e))
+          })
         })
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -206,30 +167,95 @@ export default function MapPage() {
     void init()
 
     return () => {
+      popupRef.current?.remove()
+      popupRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
     }
   }, [])
 
+  const formatNum = (v: number) => {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v)
+  }
+
+  const points = reports.filter((r: PublicReportResponse) => r.longitude != null && r.latitude != null)
+  const pointsCount = points.length
+  const totalSurface = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.surfaceM2 ?? 0), 0)
+  const totalBudget = points.reduce((acc: number, r: PublicReportResponse) => acc + (r.budget ?? 0), 0)
+  const doneCount = points.filter((r: PublicReportResponse) => r.statut === 'TERMINE').length
+  const progressPct = pointsCount > 0 ? Math.round((doneCount / pointsCount) * 100) : 0
+
   return (
     <div className="app-shell">
       <div className="map" ref={mapContainerRef} />
 
-      <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', gap: 8, alignItems: 'center', padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8 }}>
-        <span style={{ fontSize: 12 }}>Profil: <strong>{role}</strong>{me?.email ? ` (${me.email})` : ''}</span>
-        {role === 'VISITEUR' ? (
-          <>
-            <Link to="/login" style={{ color: '#fff' }}>Login</Link>
-            <Link to="/register" style={{ color: '#fff' }}>Register</Link>
-          </>
-        ) : (
-          <button onClick={logout}>Logout</button>
-        )}
-        {role === 'MANAGER' ? <Link to="/manager" style={{ color: '#fff' }}>Manager</Link> : null}
+      <div className="navbar-overlay">
+        <div className="nav-card">
+          <div className="nav-brand">
+            <FiMap />
+            <span>Cloud Map</span>
+          </div>
+
+          <div className="nav-user">
+            <div className="user-badge">{role}</div>
+            {me?.email && (
+              <div className="user-email">
+                <FiUser style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                {me.email}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="nav-actions">
+          {role === 'VISITEUR' ? (
+            <>
+              <Link to="/login" className="btn-nav btn-outline">
+                <FiLogIn /> Se connecter
+              </Link>
+              <Link to="/register" className="btn-nav btn-primary">
+                <FiUserPlus /> S'inscrire
+              </Link>
+            </>
+          ) : (
+            <>
+              {role === 'MANAGER' && (
+                <Link to="/manager" className="btn-nav btn-outline">
+                  <FiSettings /> Manager
+                </Link>
+              )}
+              <button onClick={logout} className="btn-nav btn-danger">
+                <FiLogOut /> Déconnexion
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
+        <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
+          <div>Nb de points: <strong>{pointsCount}</strong></div>
+          <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
+          <div>Avancement: <strong>{progressPct}%</strong></div>
+          <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
+        </div>
       </div>
 
       {error ? (
-        <div style={{ position: 'absolute', left: 12, bottom: 12, right: 12, padding: 12, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 12, borderRadius: 8 }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            right: 12,
+            padding: 12,
+            background: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            fontSize: 12,
+            borderRadius: 8,
+          }}
+        >
           {error}
         </div>
       ) : null}
