@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useState } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import {
@@ -47,6 +47,12 @@ export default function ManagerPage() {
 
   const [entreprisesLoading, setEntreprisesLoading] = useState(false)
   const [entreprises, setEntreprises] = useState<EntrepriseResponse[]>([])
+
+  useEffect(() => {
+    if (!token) return
+    void loadReports()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   const loadEntreprises = async () => {
     if (!token) {
@@ -430,15 +436,135 @@ export default function ManagerPage() {
             )}
           </section>
 
-          {/* Future Features Section */}
-          <section className="manager-card" style={{ opacity: 0.7 }}>
+          <section className="manager-card">
             <div className="card-header">
-              <h3><FiMap style={{ verticalAlign: 'middle', marginRight: 8 }} /> Gestion des signalements</h3>
-              <p>Outils avancés pour la modération et le suivi des incidents (en cours de développement).</p>
+              <h3>
+                <FiMap style={{ verticalAlign: 'middle', marginRight: 8 }} /> Gestion des signalements
+              </h3>
+              <p>Liste et édition des champs (statut, surface, budget, entreprise).</p>
             </div>
-            <button disabled className="manager-btn btn-secondary-manager" style={{ alignSelf: 'flex-start' }}>
-              Charger la liste complète
-            </button>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                disabled={reportsLoading}
+                type="button"
+                onClick={loadReports}
+                className="manager-btn btn-secondary-manager"
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {reportsLoading ? <FiRefreshCw className="spin" /> : <FiRefreshCw />}
+                {reportsLoading ? 'Chargement...' : 'Charger les signalements'}
+              </button>
+            </div>
+
+            {reportsError && (
+              <div className="status-message status-error" style={{ marginTop: 10 }}>
+                <FiAlertCircle /> {reportsError}
+              </div>
+            )}
+
+            {reports.length > 0 ? (
+              <div style={{ overflow: 'auto', marginTop: 12, border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(0,0,0,0.04)' }}>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Titre</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Statut</th>
+                      <th style={{ textAlign: 'right', padding: 10 }}>Surface (m²)</th>
+                      <th style={{ textAlign: 'right', padding: 10 }}>Budget</th>
+                      <th style={{ textAlign: 'left', padding: 10 }}>Entreprise</th>
+                      <th style={{ textAlign: 'right', padding: 10 }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.map((r: ManagerReportResponse) => {
+                      const e = edits[r.id]
+                      const statut = (e?.statut ?? r.statut ?? 'NOUVEAU') as StatutTravaux
+                      const surfaceVal = e?.surfaceM2 ?? r.surfaceM2 ?? null
+                      const budgetVal = e?.budget ?? r.budget ?? null
+                      const entVal = e?.idEntreprise ?? r.idEntreprise ?? ''
+                      const missingEntreprise = entVal && !entreprises.some((en: EntrepriseResponse) => en.id === entVal)
+
+                      return (
+                        <tr key={r.id} style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                          <td style={{ padding: 10, maxWidth: 280 }}>
+                            <div style={{ fontWeight: 600 }}>{r.titre ?? '—'}</div>
+                            <div style={{ fontSize: 12, opacity: 0.75 }}>{r.firestoreId ?? r.id}</div>
+                          </td>
+
+                          <td style={{ padding: 10 }}>
+                            <select
+                              value={statut}
+                              onChange={(ev: ChangeEvent<HTMLSelectElement>) =>
+                                setEdit(r.id, { statut: ev.target.value as StatutTravaux }, r)
+                              }
+                            >
+                              <option value="NOUVEAU">NOUVEAU</option>
+                              <option value="EN_COURS">EN_COURS</option>
+                              <option value="TERMINE">TERMINE</option>
+                            </select>
+                          </td>
+
+                          <td style={{ padding: 10, textAlign: 'right' }}>
+                            <input
+                              style={{ width: 110, textAlign: 'right' }}
+                              type="number"
+                              value={surfaceVal ?? ''}
+                              onChange={(ev: ChangeEvent<HTMLInputElement>) =>
+                                setEdit(r.id, { surfaceM2: ev.target.value === '' ? null : Number(ev.target.value) }, r)
+                              }
+                            />
+                          </td>
+
+                          <td style={{ padding: 10, textAlign: 'right' }}>
+                            <input
+                              style={{ width: 110, textAlign: 'right' }}
+                              type="number"
+                              value={budgetVal ?? ''}
+                              onChange={(ev: ChangeEvent<HTMLInputElement>) =>
+                                setEdit(r.id, { budget: ev.target.value === '' ? null : Number(ev.target.value) }, r)
+                              }
+                            />
+                          </td>
+
+                          <td style={{ padding: 10 }}>
+                            <select
+                              disabled={entreprisesLoading}
+                              style={{ width: 260 }}
+                              value={entVal}
+                              onChange={(ev: ChangeEvent<HTMLSelectElement>) =>
+                                setEdit(r.id, { idEntreprise: ev.target.value || null }, r)
+                              }
+                            >
+                              <option value="">Aucune</option>
+                              {missingEntreprise ? <option value={entVal}>Inconnue ({entVal})</option> : null}
+                              {entreprises.map((en: EntrepriseResponse) => (
+                                <option key={en.id} value={en.id}>
+                                  {en.nom}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+
+                          <td style={{ padding: 10, textAlign: 'right' }}>
+                            <button
+                              className="manager-btn btn-primary-manager"
+                              disabled={savingId === r.id}
+                              onClick={() => onSaveReport(r)}
+                              type="button"
+                            >
+                              {savingId === r.id ? 'Enregistrement...' : 'Enregistrer'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ marginTop: 10, opacity: 0.8 }}>Aucun signalement à afficher.</div>
+            )}
           </section>
         </div>
       </main>
