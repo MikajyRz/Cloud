@@ -1,0 +1,67 @@
+Voici la structure des collections dans la base de données Firestore pour ce projet.
+
+---
+
+### Collection : `signalements`
+
+Contient tous les signalements faits par les utilisateurs.
+Chaque document représente un signalement unique.
+
+**Champs d'un document `signalement` :**
+
+- `titre`: (Texte)
+  - Description : Le titre du signalement.
+  - Exemple : "Nid de poule dangereux"
+
+- `description`: (Texte)
+  - Description : La description détaillée du problème.
+  - Exemple : "Un grand trou sur la route près de l'école."
+
+- `latitude`: (Nombre)
+  - Description : La coordonnée de latitude du lieu du signalement.
+  - Exemple : -18.8792
+
+- `longitude`: (Nombre)
+  - Description : La coordonnée de longitude du lieu du signalement.
+  - Exemple : 47.5079
+
+- `imageUrls`: (Tableau de textes)
+  - Description : Une liste contenant les chaînes de caractères Base64 des images associées.
+  - Exemple : ["data:image/jpeg;base64,/9j/4AAQSkZJRg...", ...]
+
+- `status`: (Texte)
+  - Description : L'état actuel du signalement.
+  - Valeurs possibles : "NOUVEAU", "EN_COURS", "RESOLU", etc.
+  - Valeur par défaut : "NOUVEAU"
+
+- `uid`: (Texte)
+  - Description : L'identifiant unique Firebase de l'utilisateur qui a créé le signalement.
+  - Exemple : "aBcDeFgHiJkLmNoPqRsTuVwXyZ12345"
+
+- `userEmail`: (Texte)
+  - Description : L'adresse e-mail de l'auteur du signalement.
+  - Exemple : "utilisateur@example.com"
+
+- `createdAt`: (Timestamp)
+  - Description : La date et l'heure de création du signalement, gérées par le serveur Firebase.
+
+---
+
+### Collection : `fcm_tokens`
+
+Stocke les jetons d'enregistrement Firebase Cloud Messaging (FCM) pour chaque utilisateur afin de pouvoir leur envoyer des notifications push.
+
+**Structure :**
+
+- L'ID de chaque document est le `uid` de l'utilisateur.
+  - Exemple d'ID de document : "aBcDeFgHiJkLmNoPqRsTuVwXyZ12345"
+
+**Champs d'un document `fcm_token` :**
+
+- `token`: (Texte)
+  - Description : Le jeton FCM unique de l'appareil de l'utilisateur.
+  - Exemple : "c_...:APA91b..."
+
+- `createdAt`: (Timestamp)
+  - Description : La date de la dernière mise à jour de ce jeton.
+
