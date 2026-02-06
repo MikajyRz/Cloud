@@ -36,7 +36,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./cloud-s5-f402e-firebase-adminsdk-fbsvc-6a09efccb5.json:/run/secrets/firebase-admin.json:ro
+      - ./Cloud/cloud-s5-f402e-firebase-adminsdk-fbsvc-6a09efccb5.json:/run/secrets/firebase-admin.json:ro
 
   tileserver:
     image: maptiler/tileserver-gl:latest
