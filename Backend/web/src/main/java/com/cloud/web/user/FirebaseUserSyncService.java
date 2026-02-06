@@ -3,10 +3,12 @@ package com.cloud.web.user;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.ListUsersPage;
 import com.google.firebase.auth.UserRecord;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@ConditionalOnBean(FirebaseAuth.class)
 public class FirebaseUserSyncService {
 
     private static final String FIREBASE_PLACEHOLDER_PASSWORD = "{firebase}";
