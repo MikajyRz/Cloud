@@ -6,6 +6,7 @@ import com.cloud.web.utilisateur.Utilisateur;
 import com.cloud.web.utilisateur.UtilisateurRepository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public class SignalementSyncDto {
@@ -18,6 +19,9 @@ public class SignalementSyncDto {
     private Double budget;
     private String statut;
     private String emailUtilisateur;
+    
+    // Champs pour les images
+    private List<String> imageUrls;
     
     // Champs du mobile (non utilisés pour PostgreSQL mais présents dans Firestore)
     private String deviceId;
@@ -39,6 +43,16 @@ public class SignalementSyncDto {
         this.budget = sig.getBudget() != null ? sig.getBudget().doubleValue() : null;
         this.statut = sig.getStatut().name();
         this.emailUtilisateur = sig.getUtilisateur() != null ? sig.getUtilisateur().getEmail() : null;
+        // Convertir le JSON stocké en List<String>
+        if (sig.getImageUrls() != null && !sig.getImageUrls().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                this.imageUrls = mapper.readValue(sig.getImageUrls(), 
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                this.imageUrls = null;
+            }
+        }
     }
 
     public Signalement toEntity(UtilisateurRepository utilisateurRepository) {
@@ -53,6 +67,16 @@ public class SignalementSyncDto {
         if (surfaceM2 != null) sig.setSurfaceM2(BigDecimal.valueOf(surfaceM2));
         if (budget != null) sig.setBudget(BigDecimal.valueOf(budget));
         sig.setStatut(StatutTravaux.valueOf(statut));
+        
+        // Convertir List<String> en JSON pour stockage
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                sig.setImageUrls(mapper.writeValueAsString(imageUrls));
+            } catch (Exception e) {
+                sig.setImageUrls(null);
+            }
+        }
         
         // Essayer userEmail du mobile d'abord, puis emailUtilisateur
         String email = userEmail != null ? userEmail : emailUtilisateur;
@@ -80,6 +104,11 @@ public class SignalementSyncDto {
     public void setBudget(Double budget) { this.budget = budget; }
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
+    
+    // Support pour le champ "status" envoyé par le mobile (alias de statut)
+    public String getStatus() { return statut; }
+    public void setStatus(String status) { this.statut = status; }
+    
     public String getEmailUtilisateur() { return emailUtilisateur; }
     public void setEmailUtilisateur(String emailUtilisateur) { this.emailUtilisateur = emailUtilisateur; }
     
@@ -96,4 +125,7 @@ public class SignalementSyncDto {
     public void setCreatedAt(Object createdAt) { this.createdAt = createdAt; }
     public Object getDateSignalement() { return dateSignalement; }
     public void setDateSignalement(Object dateSignalement) { this.dateSignalement = dateSignalement; }
+    
+    public List<String> getImageUrls() { return imageUrls; }
+    public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
 }

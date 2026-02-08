@@ -14,9 +14,11 @@ type Signalement = {
   budget?: number
   statut: string
   emailUtilisateur?: string
+  nomEntreprise?: string
   dateSignalement?: string
   dateEnCours?: string
   dateTermine?: string
+  imageUrls?: string[]
 }
 
 export default function SignalementsPage() {
@@ -25,10 +27,12 @@ export default function SignalementsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const statuts = useMemo(() => ['EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ANNULE'] as const, [])
+  const statuts = useMemo(() => ['NOUVEAU', 'EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ANNULE'] as const, [])
 
   const labelStatut = (s: string) => {
     switch (s) {
+      case 'NOUVEAU':
+        return 'Nouveau'
       case 'EN_ATTENTE':
         return 'En attente'
       case 'EN_COURS':
@@ -91,6 +95,38 @@ export default function SignalementsPage() {
     }
   }
 
+  const updateField = async (id: string, field: string, value: string) => {
+    if (!token) return
+
+    const body: Record<string, unknown> = {}
+    if (field === 'surfaceM2' || field === 'budget') {
+      const num = parseFloat(value)
+      if (isNaN(num)) return
+      body[field] = num
+    } else {
+      body[field] = value
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/signalements/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+
+      await loadSignalements()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de mise à jour')
+    }
+  }
+
   useEffect(() => {
     loadSignalements()
   }, [])
@@ -115,11 +151,13 @@ export default function SignalementsPage() {
             <table className="table">
               <thead>
                 <tr>
+                  <th>Images</th>
                   <th>Titre</th>
                   <th>Description</th>
                   <th>Coordonnées</th>
                   <th>Surface</th>
                   <th>Budget</th>
+                  <th>Entreprise</th>
                   <th>Utilisateur</th>
                   <th style={{ width: 180 }}>Statut</th>
                   <th>Historique</th>
@@ -128,13 +166,67 @@ export default function SignalementsPage() {
               <tbody>
                 {signalements.map((sig) => (
                   <tr key={sig.id}>
+                    <td>
+                      {sig.imageUrls && sig.imageUrls.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {sig.imageUrls.slice(0, 3).map((url, idx) => (
+                            <img 
+                              key={idx} 
+                              src={url} 
+                              alt={`Image ${idx + 1}`}
+                              style={{ 
+                                width: '50px', 
+                                height: '50px', 
+                                objectFit: 'cover',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => window.open(url, '_blank')}
+                            />
+                          ))}
+                          {sig.imageUrls.length > 3 && (
+                            <span className="badge">+{sig.imageUrls.length - 3}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
                     <td>{sig.titre}</td>
                     <td className="muted">{sig.description}</td>
                     <td className="muted">
                       {sig.latitude.toFixed(4)}, {sig.longitude.toFixed(4)}
                     </td>
-                    <td>{sig.surfaceM2 != null ? `${sig.surfaceM2} m²` : '-'}</td>
-                    <td>{sig.budget != null ? `${sig.budget} €` : '-'}</td>
+                    <td>
+                      <input
+                        className="input"
+                        type="number"
+                        style={{ width: 80 }}
+                        defaultValue={sig.surfaceM2 ?? ''}
+                        placeholder="m²"
+                        onBlur={(e) => updateField(sig.id, 'surfaceM2', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="number"
+                        style={{ width: 90 }}
+                        defaultValue={sig.budget ?? ''}
+                        placeholder="€"
+                        onBlur={(e) => updateField(sig.id, 'budget', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="text"
+                        style={{ width: 120 }}
+                        defaultValue={sig.nomEntreprise ?? ''}
+                        placeholder="Entreprise"
+                        onBlur={(e) => updateField(sig.id, 'nomEntreprise', e.target.value)}
+                      />
+                    </td>
                     <td className="muted">{sig.emailUtilisateur ?? '-'}</td>
                     <td>
                       <select

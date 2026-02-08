@@ -36,7 +36,7 @@ type CreateReportInput = {
   longitude: number
   surfaceM2: number | null
   budget: number | null
-  images: File[]
+  imageUrls: string[]  // Images en base64
 }
 
 function getCollectionName() {
@@ -61,8 +61,7 @@ export function useReports(firestore: Firestore = db) {
       createdAt: serverTimestamp(),
       surfaceM2: input.surfaceM2,
       budget: input.budget,
-      // TODO: Remplacer par les URLs après l'upload sur un service de stockage
-      imageUrls: [], 
+      imageUrls: input.imageUrls,
       status: 'NOUVEAU',
     })
   }

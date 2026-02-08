@@ -13,11 +13,6 @@ const routes: Array<RouteRecordRaw> = [
     meta: { transition: 'slide-left' }
   },
   {
-    path: '/register',
-    component: () => import('@/views/RegisterPage.vue'),
-    meta: { transition: 'slide-left' }
-  },
-  {
     path: '/home',
     component: () => import('@/views/HomePage.vue'),
     meta: { 
@@ -50,7 +45,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   const { getCurrentUser } = useAuth()
   const u = await getCurrentUser()
 
-  if ((to.path === '/login' || to.path === '/register') && u) {
+  if (to.path === '/login' && u) {
     return { path: '/home' }
   }
 

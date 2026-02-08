@@ -48,6 +48,26 @@
           <ion-text color="danger" v-if="error" class="error-text">
             <p>{{ error }}</p>
           </ion-text>
+
+          <!-- Tableau récapitulatif -->
+          <div class="summary-table" v-if="reports.length > 0">
+            <div class="summary-row">
+              <span class="summary-label">📍 Nb de points</span>
+              <span class="summary-value">{{ reports.length }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">📐 Surface totale</span>
+              <span class="summary-value">{{ totalSurface.toFixed(0) }} m²</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">📊 Avancement</span>
+              <span class="summary-value">{{ avancementPct }}%</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">💰 Budget total</span>
+              <span class="summary-value">{{ totalBudget.toFixed(0) }} €</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -245,6 +265,25 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const userEmail = computed(() => currentUser.value?.email ?? null)
 const reportsCount = computed(() => reports.value.length)
 
+// Tableau récapitulatif
+const totalSurface = computed(() => 
+  reports.value.reduce((acc, r) => acc + ((r as any).surfaceM2 ?? 0), 0)
+)
+const totalBudget = computed(() => 
+  reports.value.reduce((acc, r) => acc + ((r as any).budget ?? 0), 0)
+)
+const avancementPct = computed(() => {
+  const total = reports.value.length
+  if (total === 0) return 0
+  const score = reports.value.reduce((acc, r) => {
+    const s = r.status ?? 'NOUVEAU'
+    if (s === 'TERMINE') return acc + 100
+    if (s === 'EN_COURS') return acc + 50
+    return acc
+  }, 0)
+  return Math.round(score / total)
+})
+
 const triggerFileInput = () => {
   fileInput.value?.click()
 }
@@ -282,6 +321,8 @@ const handleCreateReport = async () => {
     lng: createLatLng.value.lng,
     surfaceM2: newReportSurface.value,
     budget: newReportBudget.value,
+    imageUrls: newReportImagePreviews.value,
+    imageUrlsLength: newReportImagePreviews.value.length,
   })
 
   error.value = null
@@ -294,7 +335,7 @@ const handleCreateReport = async () => {
       longitude: createLatLng.value.lng,
       surfaceM2: newReportSurface.value,
       budget: newReportBudget.value,
-      images: newReportFiles.value,
+      imageUrls: newReportImagePreviews.value,  // Images en base64
     })
     isCreateOpen.value = false
   } catch (e) {
@@ -374,6 +415,7 @@ onMounted(() => {
 
   const antananarivoBounds = L.latLngBounds(L.latLng(-19.1, 47.3), L.latLng(-18.7, 47.7))
 
+  // Tuiles OpenStreetMap en ligne
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
   map = L.map(mapEl.value, {
@@ -387,7 +429,6 @@ onMounted(() => {
   const tileLayer = L.tileLayer(tileUrl, {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors',
-    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/HgAGgwJ/lK3Q6wAAAABJRU5ErkJggg==',
   })
   
   tileLayer.on('tileerror', (e) => {
@@ -569,6 +610,35 @@ const mineOnlyProxy = computed({
   padding: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
+}
+
+.summary-table {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: #666;
+}
+
+.summary-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
 }
 
 .user-info {

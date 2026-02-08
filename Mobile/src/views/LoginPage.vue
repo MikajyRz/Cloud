@@ -71,7 +71,7 @@
             </ion-button>
 
             <div class="register-link">
-              Pas de compte ? <router-link to="/register">S'inscrire</router-link>
+              Contactez votre manager pour obtenir un compte.
             </div>
           </div>
         </div>

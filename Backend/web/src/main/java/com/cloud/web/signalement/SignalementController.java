@@ -1,5 +1,6 @@
 package com.cloud.web.signalement;
 
+import com.cloud.web.entreprise.Entreprise;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,5 +33,18 @@ public class SignalementController {
         @RequestBody UpdateStatutRequest request
     ) {
         return ResponseEntity.ok(signalementService.updateStatut(id, request.statut()));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<SignalementDto> updateSignalement(
+        @PathVariable UUID id,
+        @RequestBody UpdateSignalementRequest request
+    ) {
+        return ResponseEntity.ok(signalementService.updateSignalement(id, request));
+    }
+
+    @GetMapping("/entreprises")
+    public ResponseEntity<List<Entreprise>> getEntreprises() {
+        return ResponseEntity.ok(signalementService.getAllEntreprises());
     }
 }

@@ -46,15 +46,53 @@ cloud-s5-f402e-firebase-adminsdk-fbsvc-6a09efccb5.json
 # Offline map data
 **/*.mbtiles
 
-# Docker
+# Docker – context & volumes
 **/.dockerignore
+**/docker-data/
+**/pgdata/
+**/postgres-data/
+**/mysql-data/
+**/mongo-data/
+**/redis-data/
+**/db-data/
+**/volumes/
 
 # Local DB / volumes (if ever created in repo)
 *.sqlite
 *.db
+*.sql.gz
+*.dump
 
 # Temporary / backups
 *.swp
 *.swo
 *~
 *.tmp
+
+# ===== PERFORMANCE: éviter les lenteurs docker compose =====
+# docker compose envoie le "build context" au daemon Docker.
+# Ces dossiers volumineux ralentissent énormément les commandes.
+
+# Node (déjà couverts plus haut, rappel explicite)
+# node_modules/ – des milliers de petits fichiers
+# dist/ / build/ – artefacts de build
+
+# Java / Maven
+# target/ – artefacts de compilation
+
+# Infrastructure tiles (fichiers lourds)
+Infrastructure/data/
+Infrastructure/fonts/
+
+# Git
+.git/
+
+# Misc gros fichiers
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+*.iso
+*.jar
+*.war

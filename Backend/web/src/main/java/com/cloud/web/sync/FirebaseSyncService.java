@@ -190,18 +190,19 @@ public class FirebaseSyncService {
         int errorCount = 0;
         for (QueryDocumentSnapshot document : documents) {
             try {
-                // Valider que l'ID est un UUID valide
                 String docId = document.getId();
+                UUID sigId;
+                
+                // Essayer de parser comme UUID, sinon générer un UUID déterministe à partir de l'ID Firestore
                 try {
-                    UUID.fromString(docId);
+                    sigId = UUID.fromString(docId);
                 } catch (IllegalArgumentException e) {
-                    System.err.println("⚠️ Erreur signalement " + docId + " : Invalid UUID string: " + docId);
-                    errorCount++;
-                    continue; // Ignorer les documents avec ID invalide
+                    // Générer un UUID v5 (basé sur le nom) à partir de l'ID Firestore
+                    sigId = UUID.nameUUIDFromBytes(docId.getBytes());
+                    System.out.println("ℹ️ Signalement " + docId + " converti en UUID: " + sigId);
                 }
                 
                 SignalementSyncDto dto = document.toObject(SignalementSyncDto.class);
-                UUID sigId = UUID.fromString(docId);
                 
                 // Sauvegarder dans une transaction séparée
                 if (saveSignalementFromFirestore(sigId, dto)) {

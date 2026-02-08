@@ -1,5 +1,7 @@
 package com.cloud.web.signalement;
 
+import com.cloud.web.entreprise.Entreprise;
+import com.cloud.web.entreprise.EntrepriseRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +16,12 @@ import java.util.stream.Collectors;
 public class SignalementService {
 
     private final SignalementRepository signalementRepository;
+    private final EntrepriseRepository entrepriseRepository;
 
-    public SignalementService(SignalementRepository signalementRepository) {
+    public SignalementService(SignalementRepository signalementRepository, 
+                              EntrepriseRepository entrepriseRepository) {
         this.signalementRepository = signalementRepository;
+        this.entrepriseRepository = entrepriseRepository;
     }
 
     // Public pour afficher sur la carte
@@ -110,7 +115,59 @@ public class SignalementService {
         }
     }
 
+    @PreAuthorize("hasRole('MANAGER')")
+    @Transactional
+    public SignalementDto updateSignalement(UUID id, UpdateSignalementRequest request) {
+        var signalement = signalementRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Signalement non trouvé"));
+
+        if (request.surfaceM2() != null) {
+            signalement.setSurfaceM2(request.surfaceM2());
+        }
+        if (request.budget() != null) {
+            signalement.setBudget(request.budget());
+        }
+        if (request.nomEntreprise() != null && !request.nomEntreprise().isEmpty()) {
+            Entreprise entreprise = entrepriseRepository.findByNom(request.nomEntreprise())
+                .orElseGet(() -> {
+                    Entreprise e = new Entreprise();
+                    e.setNom(request.nomEntreprise());
+                    return entrepriseRepository.save(e);
+                });
+            signalement.setEntreprise(entreprise);
+        }
+        if (request.statut() != null && !request.statut().isEmpty()) {
+            StatutTravaux oldStatut = signalement.getStatut();
+            StatutTravaux newStatut = StatutTravaux.valueOf(request.statut());
+            if (newStatut == StatutTravaux.EN_COURS && oldStatut != StatutTravaux.EN_COURS) {
+                signalement.setDateEnCours(LocalDateTime.now());
+            } else if (newStatut == StatutTravaux.TERMINE && oldStatut != StatutTravaux.TERMINE) {
+                signalement.setDateTermine(LocalDateTime.now());
+            }
+            signalement.setStatut(newStatut);
+        }
+
+        signalementRepository.save(signalement);
+        return toDto(signalement);
+    }
+
+    public List<Entreprise> getAllEntreprises() {
+        return entrepriseRepository.findAll();
+    }
+
     private SignalementDto toDto(Signalement signalement) {
+        // Convertir le JSON stocké en List<String>
+        List<String> imageUrls = null;
+        if (signalement.getImageUrls() != null && !signalement.getImageUrls().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                imageUrls = mapper.readValue(signalement.getImageUrls(), 
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                imageUrls = null;
+            }
+        }
+        
         return new SignalementDto(
             signalement.getId(),
             signalement.getTitre(),
@@ -124,7 +181,8 @@ public class SignalementService {
             signalement.getDateSignalement(),
             signalement.getEntreprise() != null ? signalement.getEntreprise().getNom() : null,
             signalement.getDateEnCours(),
-            signalement.getDateTermine()
+            signalement.getDateTermine(),
+            imageUrls
         );
     }
 }

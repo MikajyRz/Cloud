@@ -77,6 +77,7 @@ export default function MapPage() {
                 surfaceM2: r.surfaceM2 ?? null,
                 budget: r.budget ?? null,
                 entrepriseNom: r.entrepriseNom ?? null,
+                imageCount: r.imageUrls?.length ?? 0,
               },
             }))
 
@@ -142,6 +143,7 @@ export default function MapPage() {
                 <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
                 <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
                 <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
+                <div><strong>📷 Photos:</strong> ${Number((p as any).imageCount) > 0 ? Number((p as any).imageCount) + ' photo(s)' : 'Aucune'}</div>
               </div>
             `
 

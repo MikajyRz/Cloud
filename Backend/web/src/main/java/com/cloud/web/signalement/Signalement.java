@@ -5,6 +5,7 @@ import com.cloud.web.utilisateur.Utilisateur;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -46,6 +47,9 @@ public class Signalement {
 
     @Column(name = "date_termine")
     private LocalDateTime dateTermine;
+
+    @Column(name = "image_urls", columnDefinition = "TEXT")
+    private String imageUrls; // JSON array stocké comme texte
 
     @ManyToOne
     @JoinColumn(name = "id_utilisateur")
@@ -158,5 +162,13 @@ public class Signalement {
 
     public void setEntreprise(Entreprise entreprise) {
         this.entreprise = entreprise;
+    }
+
+    public String getImageUrls() {
+        return imageUrls;
+    }
+
+    public void setImageUrls(String imageUrls) {
+        this.imageUrls = imageUrls;
     }
 }

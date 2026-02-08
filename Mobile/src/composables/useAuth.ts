@@ -66,7 +66,7 @@ export function useAuth() {
     }
   }
 
-  const getCurrentUser = () => {
+  const getCurrentUser = (): Promise<User | null> => {
     return new Promise((resolve) => {
       if (initialized.value) {
         resolve(currentUser.value)

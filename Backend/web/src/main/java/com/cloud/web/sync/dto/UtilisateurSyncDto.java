@@ -27,10 +27,29 @@ public class UtilisateurSyncDto {
         u.setEmail(email);
         u.setNom(nom);
         u.setPrenom(prenom);
-        u.setRole(RoleUtilisateur.valueOf(role));
+        u.setRole(mapRole(role));
         u.setMotDePasse(motDePasse != null ? motDePasse : "");
         u.setTelephone(telephone);
         return u;
+    }
+    
+    // Mapper les rôles du mobile vers les rôles PostgreSQL
+    private RoleUtilisateur mapRole(String roleStr) {
+        if (roleStr == null || roleStr.isEmpty()) {
+            return RoleUtilisateur.UTILISATEUR;
+        }
+        switch (roleStr.toLowerCase()) {
+            case "user":
+            case "utilisateur":
+                return RoleUtilisateur.UTILISATEUR;
+            case "manager":
+                return RoleUtilisateur.MANAGER;
+            case "visiteur":
+            case "visitor":
+                return RoleUtilisateur.VISITEUR;
+            default:
+                return RoleUtilisateur.UTILISATEUR;
+        }
     }
 
     // Getters and Setters

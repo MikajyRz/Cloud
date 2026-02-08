@@ -104,5 +104,5 @@
       }
     }
   ],
-  "glyphs": "http://localhost:8081/fonts/{fontstack}/{range}.pbf"
+  "glyphs": "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"
 }

@@ -2,6 +2,7 @@ package com.cloud.web.signalement;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record SignalementDto(
@@ -17,5 +18,6 @@ public record SignalementDto(
     LocalDateTime dateSignalement,
     String nomEntreprise,
     LocalDateTime dateEnCours,
-    LocalDateTime dateTermine
+    LocalDateTime dateTermine,
+    List<String> imageUrls
 ) {}
