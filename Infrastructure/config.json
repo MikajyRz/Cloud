@@ -3,8 +3,8 @@
     "paths": {
       "root": "",
       "styles": "styles",
-      "fonts": "",
-      "sprites": "",
+      "fonts": "fonts",
+      "sprites": "sprites",
       "mbtiles": ""
     },
     "serveAllStyles": true
@@ -17,7 +17,7 @@
   },
   "data": {
     "madagascar": {
-      "mbtiles": "osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"
+      "mbtiles": "madagascar_antananarivo.mbtiles"
     }
   }
 }

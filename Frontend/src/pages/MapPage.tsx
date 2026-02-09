@@ -1,6 +1,6 @@
 import '../App.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { type MouseEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
@@ -14,22 +14,6 @@ export default function MapPage() {
   const [error, setError] = useState<string | null>(null)
   const [reports, setReports] = useState<PublicReportResponse[]>([])
   const { role, me, logout } = useAuth()
-  const [recapOpen, setRecapOpen] = useState(true)
-
-  const ensureAlertIcon = async (map: maplibregl.Map) => {
-    if (map.hasImage('alert-triangle')) return
-
-    const img = new Image()
-    img.decoding = 'async'
-    img.src = new URL('../assets/alert-triangle.svg', import.meta.url).toString()
-
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error('Failed to load alert icon'))
-    })
-
-    map.addImage('alert-triangle', img, { pixelRatio: 2 })
-  }
   
   // Lightbox state pour les photos
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -86,12 +70,6 @@ export default function MapPage() {
           style: styleUrl,
           center: [47.5079, -18.8792],
           zoom: 12,
-          maxBounds: [
-            [47.3, -19.1],
-            [47.7, -18.7],
-          ],
-          maxBoundsViscosity: 1.0,
-          minZoom: 12,
         })
 
         map.on('error', (e: maplibregl.ErrorEvent) => {
@@ -104,6 +82,9 @@ export default function MapPage() {
 
         const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, className: 'hover-popup' })
         popupRef.current = popup
+
+        // Popup persistant pour le clic (avec lien photos)
+        const clickPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, offset: 12, maxWidth: '320px' })
 
         // Timer pour le délai de fermeture du popup hover
         let hoverTimeout: ReturnType<typeof setTimeout> | null = null
@@ -136,8 +117,6 @@ export default function MapPage() {
         })
 
         const loadReports = async () => {
-          await ensureAlertIcon(map)
-
           const reports = await listPublicReportsApi()
           setReports(reports)
           const features = reports
@@ -176,26 +155,15 @@ export default function MapPage() {
           })
 
           map.addLayer({
-            id: 'reports-halo',
+            id: 'reports-circle',
             type: 'circle',
             source: 'reports',
             paint: {
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 14, 15, 22, 18, 30],
-              'circle-color': '#ef1d25',
-              'circle-opacity': 0.18,
-              'circle-blur': 0.9,
-            },
-          })
-
-          map.addLayer({
-            id: 'reports-icon',
-            type: 'symbol',
-            source: 'reports',
-            layout: {
-              'icon-image': 'alert-triangle',
-              'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.26, 15, 0.34, 18, 0.42],
-              'icon-allow-overlap': true,
-              'icon-ignore-placement': true,
+              'circle-radius': 7,
+              'circle-color': '#ff2d2d',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
+              'circle-opacity': 0.9,
             },
           })
 
@@ -216,7 +184,7 @@ export default function MapPage() {
             return s.length > 19 ? s.slice(0, 19).replace('T', ' ') : s.replace('T', ' ')
           }
 
-          map.on('mousemove', 'reports-icon', (e) => {
+          map.on('mousemove', 'reports-circle', (e) => {
             map.getCanvas().style.cursor = 'pointer'
             const f = e.features?.[0]
             if (!f) return
@@ -233,51 +201,79 @@ export default function MapPage() {
 
             const statut = formatStatut((p as any).statut)
             const photoCount = Number((p as any).imageCount) || 0
-            const statutClass = statut ? `popup-badge popup-badge--${statut}` : 'popup-badge'
-
-            let hoverPhotosHtml = ''
-            try {
-              const raw = (p as any).imageUrls
-              const urls = raw ? (typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])) : []
-              if (Array.isArray(urls) && urls.length > 0) {
-                const imagesJson = JSON.stringify(urls).replace(/"/g, '&quot;')
-                hoverPhotosHtml = `<button class=\"popup-link\" onclick=\"window.__openLightbox('${imagesJson}', 0)\">Voir les photos</button>`
-              }
-            } catch {
-              hoverPhotosHtml = ''
-            }
-
             const html = `
-              <div class="popup-card">
-                <div class="popup-title">Signalement</div>
-                <div class="popup-grid">
-                  <div class="popup-label">Date</div>
-                  <div class="popup-value">${formatDate((p as any).dateSignalement)}</div>
-
-                  <div class="popup-label">Statut</div>
-                  <div class="popup-value"><span class="${statutClass}">${statut ?? '—'}</span></div>
-
-                  <div class="popup-label">Surface</div>
-                  <div class="popup-value">${formatNumber((p as any).surfaceM2)} m²</div>
-
-                  <div class="popup-label">Budget</div>
-                  <div class="popup-value">${formatNumber((p as any).budget)}</div>
-
-                  <div class="popup-label">Entreprise</div>
-                  <div class="popup-value">${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
-
-                  <div class="popup-label">Photos</div>
-                  <div class="popup-value">${photoCount > 0 ? photoCount + ' photo(s)' : 'Aucune'}${hoverPhotosHtml ? ` <span class=\"popup-sep\">•</span> ${hoverPhotosHtml}` : ''}</div>
-                </div>
+              <div style="font-size:12px; min-width: 220px; padding: 4px;">
+                <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
+                <div><strong>Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
+                <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
+                <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
+                <div><strong>📷 Photos:</strong> ${photoCount > 0 ? photoCount + ' photo(s) — <em>cliquer pour voir</em>' : 'Aucune'}</div>
               </div>
             `
 
             popup.setLngLat(e.lngLat).setHTML(html).addTo(map)
           })
 
-          map.on('mouseleave', 'reports-icon', () => {
+          map.on('mouseleave', 'reports-circle', () => {
             map.getCanvas().style.cursor = ''
             closePopupWithDelay()
+          })
+
+          // Clic sur un point : popup persistant avec liens vers les photos
+          map.on('click', 'reports-circle', (e) => {
+            const f = e.features?.[0]
+            if (!f) return
+
+            // Fermer le hover popup
+            popup.remove()
+
+            const p = f.properties as any
+            const statut = formatStatut(p.statut)
+
+            // Parser les URLs des photos
+            let urls: string[] = []
+            try {
+              const raw = p.imageUrls
+              if (raw) {
+                urls = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
+              }
+            } catch { urls = [] }
+
+            // Générer le HTML des miniatures photos cliquables
+            let photosHtml = ''
+            if (urls.length > 0) {
+              const imagesJson = JSON.stringify(urls).replace(/"/g, '&quot;')
+              const thumbnails = urls.map((url: string, i: number) => 
+                `<div 
+                  onclick="window.__openLightbox('${imagesJson}', ${i})" 
+                  style="width:50px; height:50px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid #e2e8f0; transition:all 0.2s;"
+                  onmouseover="this.style.borderColor='#2563eb'; this.style.transform='scale(1.05)'"
+                  onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='scale(1)'"
+                >
+                  <img src="${url}" style="width:100%; height:100%; object-fit:cover;" alt="Photo ${i + 1}" />
+                </div>`
+              ).join('')
+              photosHtml = `<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">${thumbnails}</div>`
+            } else {
+              photosHtml = '<div style="color:#999; margin-top:4px; font-size:12px;">Aucune photo disponible</div>'
+            }
+
+            const html = `
+              <div style="font-size:13px; min-width: 240px; line-height: 1.6;">
+                <div><strong>📅 Date:</strong> ${formatDate(p.dateSignalement)}</div>
+                <div><strong>📊 Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>📐 Surface:</strong> ${formatNumber(p.surfaceM2)} m²</div>
+                <div><strong>💰 Budget:</strong> ${formatNumber(p.budget)}</div>
+                <div><strong>🏢 Entreprise:</strong> ${p.entrepriseNom ? String(p.entrepriseNom) : '—'}</div>
+                <div style="margin-top:6px; border-top:1px solid #eee; padding-top:6px;">
+                  <strong>🖼️ Photos (${urls.length}):</strong>
+                  ${photosHtml}
+                </div>
+              </div>
+            `
+
+            clickPopup.setLngLat(e.lngLat).setHTML(html).addTo(map)
           })
 
           // Ajuster la vue pour englober tous les signalements
@@ -368,33 +364,14 @@ export default function MapPage() {
         </div>
       </div>
 
-      <div className={`recap-card${recapOpen ? '' : ' recap-card--closed'}`}>
-        <div className="recap-header">
-          <div className="recap-title">Récapitulatif</div>
-          <button className="recap-toggle" onClick={() => setRecapOpen((v: boolean) => !v)}>
-            {recapOpen ? 'Masquer' : 'Afficher'}
-          </button>
+      <div style={{ position: 'absolute', left: 12, top: 60, padding: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 8, minWidth: 260 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Récapitulatif</div>
+        <div style={{ fontSize: 12, display: 'grid', gap: 4 }}>
+          <div>Nb de points: <strong>{pointsCount}</strong></div>
+          <div>Total surface: <strong>{formatNum(totalSurface)}</strong> m²</div>
+          <div>Avancement: <strong>{progressPct}%</strong></div>
+          <div>Total budget: <strong>{formatNum(totalBudget)}</strong></div>
         </div>
-        {recapOpen && (
-          <div className="recap-grid">
-            <div className="recap-row">
-              <div className="recap-label">Nb de points</div>
-              <div className="recap-value">{pointsCount}</div>
-            </div>
-            <div className="recap-row">
-              <div className="recap-label">Total surface</div>
-              <div className="recap-value">{formatNum(totalSurface)} <span className="recap-unit">m²</span></div>
-            </div>
-            <div className="recap-row">
-              <div className="recap-label">Avancement</div>
-              <div className="recap-value">{progressPct}<span className="recap-unit">%</span></div>
-            </div>
-            <div className="recap-row">
-              <div className="recap-label">Total budget</div>
-              <div className="recap-value">{formatNum(totalBudget)}</div>
-            </div>
-          </div>
-        )}
       </div>
 
       {error ? (
@@ -421,7 +398,7 @@ export default function MapPage() {
           className="lightbox-overlay"
           onClick={() => setLightboxOpen(false)}
         >
-          <div className="lightbox-container" onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+          <div className="lightbox-container" onClick={(e) => e.stopPropagation()}>
             {/* Bouton fermer */}
             <button 
               className="lightbox-close"
@@ -434,7 +411,7 @@ export default function MapPage() {
             {lightboxImages.length > 1 && (
               <button 
                 className="lightbox-nav lightbox-prev"
-                onClick={() => setLightboxIndex((prev: number) => (prev - 1 + lightboxImages.length) % lightboxImages.length)}
+                onClick={() => setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length)}
               >
                 <FiChevronLeft />
               </button>
@@ -451,7 +428,7 @@ export default function MapPage() {
             {lightboxImages.length > 1 && (
               <button 
                 className="lightbox-nav lightbox-next"
-                onClick={() => setLightboxIndex((prev: number) => (prev + 1) % lightboxImages.length)}
+                onClick={() => setLightboxIndex((prev) => (prev + 1) % lightboxImages.length)}
               >
                 <FiChevronRight />
               </button>
@@ -465,7 +442,7 @@ export default function MapPage() {
             {/* Miniatures */}
             {lightboxImages.length > 1 && (
               <div className="lightbox-thumbnails">
-                {lightboxImages.map((img: string, i: number) => (
+                {lightboxImages.map((img, i) => (
                   <div
                     key={i}
                     className={`lightbox-thumb ${i === lightboxIndex ? 'active' : ''}`}
