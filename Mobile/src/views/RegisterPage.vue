@@ -1,59 +1,78 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="register-page-content">
-      <div class="background-decor">
-        <div class="circle circle-1"></div>
-        <div class="circle circle-2"></div>
+    <ion-content :fullscreen="true" class="register-content">
+      <div class="bg-gradient">
+        <div class="bg-shape bg-shape-1"></div>
+        <div class="bg-shape bg-shape-2"></div>
+        <div class="bg-shape bg-shape-3"></div>
       </div>
 
-      <div class="register-container">
-        <div class="register-card">
-          <div class="register-header">
-            <div class="logo-circle">
-              <ion-icon :icon="mapOutline" />
-            </div>
-            <h1>Créer un compte</h1>
-            <p>Rejoignez-nous pour signaler des incidents</p>
-          </div>
-
-          <div class="register-form">
-            <div class="input-wrapper">
-              <ion-icon :icon="mailOutline" class="input-icon" />
-              <ion-item lines="none">
-                <ion-input v-model="email" type="email" placeholder="Email" autocomplete="email" />
-              </ion-item>
-            </div>
-
-            <div class="input-wrapper">
-              <ion-icon :icon="lockClosedOutline" class="input-icon" />
-              <ion-item lines="none">
-                <ion-input
-                  v-model="password"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="Mot de passe"
-                  autocomplete="new-password"
-                />
-                <ion-button slot="end" fill="clear" @click="showPassword = !showPassword" class="eye-button">
-                  <ion-icon slot="icon-only" :icon="showPassword ? eyeOffOutline : eyeOutline" />
-                </ion-button>
-              </ion-item>
-            </div>
-
-            <ion-button expand="block" class="register-btn" :disabled="loading" @click="onRegister">
-              <ion-spinner v-if="loading" name="crescent" />
-              <span v-else>S'inscrire</span>
-            </ion-button>
-
-            <div class="login-link">
-              Déjà un compte ? <router-link to="/login">Se connecter</router-link>
+      <div class="register-wrapper">
+        <!-- Brand -->
+        <div class="brand-section">
+          <div class="logo-container">
+            <div class="logo-icon">
+              <ion-icon :icon="constructOutline" />
             </div>
           </div>
+          <h1 class="brand-title">Cloud S5</h1>
+          <p class="brand-subtitle">Créez votre compte</p>
         </div>
+
+        <!-- Card -->
+        <div class="register-card">
+          <h2 class="card-title">Inscription</h2>
+          <p class="card-desc">Remplissez vos informations pour rejoindre la plateforme</p>
+
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <div class="input-field" :class="{ focused: emailFocused }">
+              <ion-icon :icon="mailOutline" class="field-icon" />
+              <ion-input
+                v-model="email"
+                type="email"
+                placeholder="votre@email.com"
+                autocomplete="email"
+                @ionFocus="emailFocused = true"
+                @ionBlur="emailFocused = false"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mot de passe</label>
+            <div class="input-field" :class="{ focused: passwordFocused }">
+              <ion-icon :icon="lockClosedOutline" class="field-icon" />
+              <ion-input
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                autocomplete="new-password"
+                @ionFocus="passwordFocused = true"
+                @ionBlur="passwordFocused = false"
+              />
+              <button class="toggle-pw" @click="showPassword = !showPassword">
+                <ion-icon :icon="showPassword ? eyeOffOutline : eyeOutline" />
+              </button>
+            </div>
+          </div>
+
+          <ion-button expand="block" class="register-btn" :disabled="loading" @click="onRegister">
+            <ion-spinner v-if="loading" name="crescent" />
+            <span v-else>Créer mon compte</span>
+          </ion-button>
+
+          <p class="help-text">
+            Déjà un compte ? <router-link to="/login" class="link">Se connecter</router-link>
+          </p>
+        </div>
+
+        <p class="footer-text">Cloud S5 © 2026 — Projet Madagascar</p>
       </div>
 
       <ion-alert
         :is-open="!!error"
-        header="Erreur"
+        header="Erreur d'inscription"
         :message="error || ''"
         :buttons="['OK']"
         @didDismiss="error = null"
@@ -66,24 +85,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  IonPage,
-  IonContent,
-  IonList,
-  IonItem,
-  IonInput,
-  IonButton,
-  IonText,
-  IonIcon,
-  IonSpinner,
-  IonAlert,
+  IonPage, IonContent, IonInput, IonButton, IonIcon, IonSpinner, IonAlert,
 } from '@ionic/vue'
 import {
-    mailOutline,
-    lockClosedOutline,
-    mapOutline,
-    eyeOutline,
-    eyeOffOutline,
-  } from 'ionicons/icons'
+  mailOutline, lockClosedOutline, constructOutline, eyeOutline, eyeOffOutline,
+} from 'ionicons/icons'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
@@ -94,10 +100,12 @@ const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const emailFocused = ref(false)
+const passwordFocused = ref(false)
 
 const onRegister = async () => {
   if (!email.value || !password.value) {
-    error.value = "Veuillez remplir tous les champs"
+    error.value = 'Veuillez remplir tous les champs'
     return
   }
   error.value = null
@@ -114,155 +122,94 @@ const onRegister = async () => {
 </script>
 
 <style scoped>
-.register-page-content {
-  --background: #f4f7f6;
-  position: relative;
+.register-content {
+  --background: #0f172a;
 }
 
-.background-decor {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: 0;
+.bg-gradient {
+  position: absolute; inset: 0; overflow: hidden; z-index: 0;
 }
 
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.4;
+.bg-shape {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.35;
+}
+.bg-shape-1 { width: 350px; height: 350px; background: #4f46e5; top: -80px; left: -60px; }
+.bg-shape-2 { width: 280px; height: 280px; background: #0d9488; bottom: 10%; right: -60px; }
+.bg-shape-3 { width: 200px; height: 200px; background: #6366f1; top: 45%; right: 30%; }
+
+.register-wrapper {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 100%; padding: 24px 20px;
 }
 
-.circle-1 {
-  width: 300px;
-  height: 300px;
-  background: #3b82f6;
-  top: -100px;
-  right: -50px;
+.brand-section { text-align: center; margin-bottom: 32px; }
+.logo-container { margin-bottom: 16px; }
+.logo-icon {
+  width: 72px; height: 72px; margin: 0 auto;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 36px; color: white;
+  box-shadow: 0 8px 32px rgba(79, 70, 229, 0.4);
 }
-
-.circle-2 {
-  width: 250px;
-  height: 250px;
-  background: #60a5fa;
-  bottom: -50px;
-  left: -50px;
+.brand-title {
+  font-size: 28px; font-weight: 800; color: #f8fafc; margin: 0 0 4px;
+  letter-spacing: -0.02em;
 }
-
-.register-container {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100%;
-  padding: 20px;
-}
+.brand-subtitle { font-size: 14px; color: #94a3b8; margin: 0; }
 
 .register-card {
-  background: white;
-  width: 100%;
-  max-width: 400px;
-  padding: 32px 24px;
-  border-radius: 24px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  width: 100%; max-width: 400px;
+  background: rgba(255, 255, 255, 0.97); backdrop-filter: blur(20px);
+  padding: 32px 24px; border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-.register-header {
-  text-align: center;
-  margin-bottom: 32px;
+.card-title { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+.card-desc { font-size: 14px; color: #64748b; margin: 0 0 28px; }
+
+.form-group { margin-bottom: 20px; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 600; color: #334155;
+  margin-bottom: 8px; letter-spacing: 0.02em;
 }
 
-.logo-circle {
-  width: 64px;
-  height: 64px;
-  background: #3b82f6;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  color: white;
-  font-size: 32px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+.input-field {
+  display: flex; align-items: center; gap: 10px;
+  background: #f1f5f9; border: 2px solid transparent; border-radius: 12px;
+  padding: 0 16px; height: 52px; transition: all 0.25s ease;
+}
+.input-field.focused {
+  background: #fff; border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
 
-h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 8px;
-  color: #1a1a1a;
+.field-icon { font-size: 20px; color: #94a3b8; flex-shrink: 0; }
+.input-field.focused .field-icon { color: #4f46e5; }
+
+.input-field ion-input {
+  --padding-start: 0; --padding-end: 0; --background: transparent;
+  font-size: 15px; flex: 1; --color: #0f172a;
 }
 
-.register-header p {
-  color: #666;
-  font-size: 14px;
-  margin: 0;
-}
-
-.input-wrapper {
-  background: #f9f9f9;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.input-wrapper:focus-within {
-  background: white;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-}
-
-.input-icon {
-  font-size: 20px;
-  color: #999;
-}
-
-ion-item {
-  --background: transparent;
-  --padding-start: 12px;
-  --inner-padding-end: 0;
-  width: 100%;
-}
-
-ion-input {
-  --padding-start: 0;
-  font-size: 15px;
-}
-
-.eye-button {
-  --padding-start: 8px;
-  --padding-end: 8px;
-  margin: 0;
-  color: #999;
+.toggle-pw {
+  background: none; border: none; padding: 4px; cursor: pointer;
+  color: #94a3b8; font-size: 20px; display: flex; align-items: center;
 }
 
 .register-btn {
-  --border-radius: 12px;
-  --padding-top: 16px;
-  --padding-bottom: 16px;
-  margin-top: 24px;
-  margin-bottom: 24px;
-  font-weight: 600;
-  font-size: 16px;
+  --background: #4f46e5; --background-hover: #4338ca;
+  --border-radius: 12px; --padding-top: 16px; --padding-bottom: 16px;
+  margin-top: 28px; font-weight: 700; font-size: 16px;
+  --box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3);
 }
 
-.login-link {
-  text-align: center;
-  font-size: 14px;
-  color: #666;
+.help-text {
+  text-align: center; font-size: 13px; color: #94a3b8; margin: 20px 0 0;
 }
+.link { color: #4f46e5; font-weight: 600; text-decoration: none; }
 
-.login-link a {
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 600;
+.footer-text {
+  text-align: center; font-size: 12px; color: #475569; margin-top: 32px;
 }
 </style>

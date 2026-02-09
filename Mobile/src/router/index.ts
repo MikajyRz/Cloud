@@ -21,6 +21,14 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/notifications',
+    component: () => import('@/views/NotificationsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      transition: 'slide-right'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

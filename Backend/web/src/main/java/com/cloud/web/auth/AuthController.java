@@ -1,6 +1,7 @@
 package com.cloud.web.auth;
 
 import com.cloud.web.auth.dto.AuthResponse;
+import com.cloud.web.auth.dto.CreateUserRequest;
 import com.cloud.web.auth.dto.LoginRequest;
 import com.cloud.web.auth.dto.SignupRequest;
 import com.cloud.web.auth.dto.UnlockRequest;
@@ -34,6 +35,13 @@ public class AuthController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<Void> unlock(@Valid @RequestBody UnlockRequest req) {
         authService.unlockUser(req.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/create-user")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<Void> createUser(@Valid @RequestBody CreateUserRequest req) {
+        authService.createUser(req);
         return ResponseEntity.ok().build();
     }
 }

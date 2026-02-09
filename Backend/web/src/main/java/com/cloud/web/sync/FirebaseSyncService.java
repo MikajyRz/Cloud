@@ -378,9 +378,39 @@ public class FirebaseSyncService {
                 } else {
                     // CAS 2 : Donnée existante → Vérifier s'il y a des différences
                     if (hasUserChanged(pgUser, data)) {
-                        // PostgreSQL prioritaire → Mettre à jour Firestore
+                        // Merge intelligent : 
+                        // - Champs métier (nom, prenom, role, telephone) : PostgreSQL prioritaire
+                        // - Champs sécurité (tentativesEchouees, estBloque) : valeur la plus restrictive
+                        //   → prend le max des tentatives et OR logique pour estBloque
+                        //   (car le mobile peut aussi incrémenter les tentatives via Firestore)
+                        
+                        int fsTentatives = data.get("tentativesEchouees") != null 
+                            ? ((Number) data.get("tentativesEchouees")).intValue() : 0;
+                        boolean fsBloque = data.get("estBloque") != null 
+                            && Boolean.TRUE.equals(data.get("estBloque"));
+                        
+                        int pgTentatives = pgUser.getTentativesEchouees();
+                        boolean pgBloque = Boolean.TRUE.equals(pgUser.getEstBloque());
+                        
+                        // Prendre la valeur la plus restrictive pour la sécurité
+                        int mergedTentatives = Math.max(pgTentatives, fsTentatives);
+                        boolean mergedBloque = pgBloque || fsBloque;
+                        
+                        // Si Firestore a des tentatives plus élevées → mettre à jour PostgreSQL
+                        if (fsTentatives > pgTentatives || (fsBloque && !pgBloque)) {
+                            pgUser.setTentativesEchouees(mergedTentatives);
+                            pgUser.setEstBloque(mergedBloque);
+                            utilisateurRepository.save(pgUser);
+                            result.addLog("🔒 Sécurité utilisateur mise à jour depuis Firestore : " + email 
+                                + " (tentatives=" + mergedTentatives + ", bloqué=" + mergedBloque + ")");
+                        }
+                        
+                        // PostgreSQL prioritaire pour les champs métier → Mettre à jour Firestore
                         UtilisateurSyncDto dto = new UtilisateurSyncDto(pgUser);
                         Map<String, Object> userData = convertToMap(dto);
+                        // S'assurer que les champs de sécurité mergés sont poussés
+                        userData.put("tentativesEchouees", mergedTentatives);
+                        userData.put("estBloque", mergedBloque);
                         
                         String docId = pgUser.getEmail().replace(".", "_");
                         usersRef.document(docId).set(userData).get();
@@ -442,20 +472,32 @@ public class FirebaseSyncService {
             pgSigMap.put(sig.getId(), sig);
         }
         
+        // Set pour tracker les IDs PostgreSQL déjà traités
+        java.util.Set<UUID> processedIds = new java.util.HashSet<>();
+        
         // Traiter les signalements Firestore
         for (QueryDocumentSnapshot doc : firestoreDocs) {
             try {
                 String idStr = doc.getId();
-                UUID firestoreId = UUID.fromString(idStr);
+                
+                // Convertir l'ID Firestore en UUID (fallback pour les IDs non-UUID)
+                UUID firestoreId;
+                try {
+                    firestoreId = UUID.fromString(idStr);
+                } catch (IllegalArgumentException e) {
+                    // ID Firestore auto-généré (ex: H6yaGmu24qofCNABcVQG) → UUID déterministe
+                    firestoreId = UUID.nameUUIDFromBytes(idStr.getBytes());
+                }
                 
                 Signalement pgSignalement = pgSigMap.get(firestoreId);
                 
                 if (pgSignalement == null) {
                     // CAS 1 : Nouveau signalement dans Firestore → INSERT dans PostgreSQL
                     SignalementSyncDto dto = doc.toObject(SignalementSyncDto.class);
-                    dto.setId(idStr); // S'assurer que l'ID est préservé
+                    dto.setId(firestoreId.toString()); // Utiliser l'UUID converti
                     
                     Signalement newSignalement = dto.toEntity(utilisateurRepository);
+                    newSignalement.setId(firestoreId); // Forcer l'UUID converti
                     syncPersistenceService.insertSignalement(newSignalement);
                     
                     result.getSignalements().incrementNouveaux();
@@ -468,7 +510,29 @@ public class FirebaseSyncService {
                     // CAS 2 : Signalement existant → Vérifier s'il y a des différences
                     Map<String, Object> firestoreData = doc.getData();
                     if (hasSignalementChanged(pgSignalement, firestoreData)) {
-                        // PostgreSQL prioritaire → Mettre à jour Firestore
+                        // Merge intelligent : 
+                        // - Champs métier (titre, description, statut, etc.) : PostgreSQL prioritaire
+                        // - Photos (imageUrls) : Firestore prioritaire (ajoutées depuis le mobile)
+                        
+                        // Récupérer les photos de Firestore si PG n'en a pas
+                        @SuppressWarnings("unchecked")
+                        List<String> fsImageUrls = (List<String>) firestoreData.get("imageUrls");
+                        boolean fsHasImages = fsImageUrls != null && !fsImageUrls.isEmpty();
+                        boolean pgHasImages = pgSignalement.getImageUrls() != null && !pgSignalement.getImageUrls().isEmpty();
+                        
+                        if (fsHasImages && !pgHasImages) {
+                            // Importer les photos de Firestore vers PostgreSQL
+                            try {
+                                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                pgSignalement.setImageUrls(mapper.writeValueAsString(fsImageUrls));
+                                signalementRepository.save(pgSignalement);
+                                result.addLog("📷 Photos importées depuis Firestore pour : " + idStr + " (" + fsImageUrls.size() + " photo(s))");
+                            } catch (Exception imgEx) {
+                                result.addError("Erreur import photos " + idStr + " : " + imgEx.getMessage());
+                            }
+                        }
+                        
+                        // PostgreSQL prioritaire pour les champs métier → Mettre à jour Firestore
                         SignalementSyncDto dto = new SignalementSyncDto(pgSignalement);
                         Map<String, Object> sigData = convertToMap(dto);
                         
@@ -482,12 +546,17 @@ public class FirebaseSyncService {
                     }
                 }
                 
-                // Retirer de la map
-                pgSigMap.remove(firestoreId);
+                // Marquer comme traité
+                processedIds.add(firestoreId);
                 
             } catch (Exception e) {
                 result.addError("Erreur signalement " + doc.getId() + " : " + e.getMessage());
             }
+        }
+        
+        // Retirer les signalements déjà traités
+        for (UUID processedId : processedIds) {
+            pgSigMap.remove(processedId);
         }
         
         // CAS 3 : Signalements présents uniquement dans PostgreSQL → PUSH vers Firestore
@@ -519,10 +588,18 @@ public class FirebaseSyncService {
         String fsRole = (String) firestoreData.get("role");
         String fsTelephone = (String) firestoreData.get("telephone");
         
+        // Comparer aussi les champs de sécurité (tentatives et blocage)
+        int fsTentatives = firestoreData.get("tentativesEchouees") != null 
+            ? ((Number) firestoreData.get("tentativesEchouees")).intValue() : 0;
+        boolean fsBloque = firestoreData.get("estBloque") != null 
+            && Boolean.TRUE.equals(firestoreData.get("estBloque"));
+        
         return !Objects.equals(pgUser.getNom(), fsNom) ||
                !Objects.equals(pgUser.getPrenom(), fsPrenom) ||
                !pgUser.getRole().name().equals(fsRole) ||
-               !Objects.equals(pgUser.getTelephone(), fsTelephone);
+               !Objects.equals(pgUser.getTelephone(), fsTelephone) ||
+               pgUser.getTentativesEchouees() != fsTentatives ||
+               !Objects.equals(pgUser.getEstBloque(), fsBloque);
     }
 
     /**
@@ -533,9 +610,16 @@ public class FirebaseSyncService {
         String fsDescription = (String) firestoreData.get("description");
         String fsStatut = (String) firestoreData.get("statut");
         
+        // Vérifier si Firestore a des photos que PostgreSQL n'a pas
+        @SuppressWarnings("unchecked")
+        List<String> fsImageUrls = (List<String>) firestoreData.get("imageUrls");
+        boolean fsHasImages = fsImageUrls != null && !fsImageUrls.isEmpty();
+        boolean pgHasImages = pgSig.getImageUrls() != null && !pgSig.getImageUrls().isEmpty();
+        
         return !Objects.equals(pgSig.getTitre(), fsTitre) ||
                !Objects.equals(pgSig.getDescription(), fsDescription) ||
-               !pgSig.getStatut().name().equals(fsStatut);
+               !pgSig.getStatut().name().equals(fsStatut) ||
+               (fsHasImages && !pgHasImages);
     }
 
     /**

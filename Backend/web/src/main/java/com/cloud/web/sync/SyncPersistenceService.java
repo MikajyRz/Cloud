@@ -22,6 +22,15 @@ import java.util.UUID;
 @Service
 public class SyncPersistenceService {
 
+    private static BigDecimal toBigDecimal(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return BigDecimal.valueOf(((Number) val).doubleValue());
+        if (val instanceof String) {
+            try { return new BigDecimal((String) val); } catch (NumberFormatException e) { return null; }
+        }
+        return null;
+    }
+
     private final SignalementRepository signalementRepository;
     private final FirebaseSyncRepository syncRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -58,12 +67,10 @@ public class SyncPersistenceService {
                 Signalement sig = existing.get();
                 sig.setTitre(dto.getTitre());
                 sig.setDescription(dto.getDescription());
-                sig.setLatitude(BigDecimal.valueOf(dto.getLatitude()));
-                sig.setLongitude(BigDecimal.valueOf(dto.getLongitude()));
-                if (dto.getSurfaceM2() != null) sig.setSurfaceM2(BigDecimal.valueOf(dto.getSurfaceM2()));
-                else sig.setSurfaceM2(null);
-                if (dto.getBudget() != null) sig.setBudget(BigDecimal.valueOf(dto.getBudget()));
-                else sig.setBudget(null);
+                sig.setLatitude(toBigDecimal(dto.getLatitude()));
+                sig.setLongitude(toBigDecimal(dto.getLongitude()));
+                sig.setSurfaceM2(toBigDecimal(dto.getSurfaceM2()));
+                sig.setBudget(toBigDecimal(dto.getBudget()));
                 if (dto.getStatut() != null) sig.setStatut(StatutTravaux.valueOf(dto.getStatut()));
                 if (utilisateurId != null) {
                     Utilisateur u = entityManager.find(Utilisateur.class, utilisateurId);
@@ -74,16 +81,16 @@ public class SyncPersistenceService {
             } else {
                 // Insérer via SQL natif pour éviter les problèmes de détachement
                 String sql = "INSERT INTO signalement (id, titre, description, latitude, longitude, surface_m2, budget, statut, date_signalement, id_utilisateur) " +
-                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?::statut_travaux, ?, ?)";
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?::statuttravaux, ?, ?)";
                 
                 jdbcTemplate.update(sql,
                     sigId,
                     dto.getTitre(),
                     dto.getDescription(),
-                    BigDecimal.valueOf(dto.getLatitude()),
-                    BigDecimal.valueOf(dto.getLongitude()),
-                    dto.getSurfaceM2() != null ? BigDecimal.valueOf(dto.getSurfaceM2()) : null,
-                    dto.getBudget() != null ? BigDecimal.valueOf(dto.getBudget()) : null,
+                    toBigDecimal(dto.getLatitude()),
+                    toBigDecimal(dto.getLongitude()),
+                    toBigDecimal(dto.getSurfaceM2()),
+                    toBigDecimal(dto.getBudget()),
                     dto.getStatut(),
                     Timestamp.valueOf(LocalDateTime.now()),
                     utilisateurId
@@ -109,7 +116,7 @@ public class SyncPersistenceService {
     public Signalement insertSignalement(Signalement signalement) {
         // Insérer via SQL natif
         String sql = "INSERT INTO signalement (id, titre, description, latitude, longitude, surface_m2, budget, statut, date_signalement, id_utilisateur, id_entreprise) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?::statut_travaux, ?, ?, ?)";
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?::statuttravaux, ?, ?, ?)";
         
         jdbcTemplate.update(sql,
             signalement.getId(),

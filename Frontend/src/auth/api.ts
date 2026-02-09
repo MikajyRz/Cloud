@@ -148,6 +148,21 @@ export async function signupApi(req: SignupRequest): Promise<void> {
   })
 }
 
+export type CreateUserRequest = {
+  email: string
+  password: string
+  fullName: string
+  role: 'UTILISATEUR' | 'MANAGER'
+}
+
+export async function createUserApi(token: string, req: CreateUserRequest): Promise<void> {
+  await http<void>('/api/auth/create-user', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(req),
+  })
+}
+
 export async function listPublicReportsApi(): Promise<PublicReportResponse[]> {
   const rows = await http<BackendSignalementResponse[]>('/api/signalements', {
     method: 'GET',

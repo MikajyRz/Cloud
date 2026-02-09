@@ -2,6 +2,7 @@ package com.cloud.web.signalement;
 
 import com.cloud.web.entreprise.Entreprise;
 import com.cloud.web.entreprise.EntrepriseRepository;
+import com.cloud.web.notification.NotificationService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,11 +18,14 @@ public class SignalementService {
 
     private final SignalementRepository signalementRepository;
     private final EntrepriseRepository entrepriseRepository;
+    private final NotificationService notificationService;
 
     public SignalementService(SignalementRepository signalementRepository, 
-                              EntrepriseRepository entrepriseRepository) {
+                              EntrepriseRepository entrepriseRepository,
+                              NotificationService notificationService) {
         this.signalementRepository = signalementRepository;
         this.entrepriseRepository = entrepriseRepository;
+        this.notificationService = notificationService;
     }
 
     // Public pour afficher sur la carte
@@ -109,6 +113,17 @@ public class SignalementService {
             
             signalement.setStatut(newStatut);
             signalementRepository.save(signalement);
+            
+            // Créer une notification pour tous les utilisateurs mobiles
+            if (oldStatut != newStatut) {
+                notificationService.creerNotificationChangementStatut(
+                    signalement.getId(),
+                    signalement.getTitre(),
+                    oldStatut.name(),
+                    newStatut.name()
+                );
+            }
+            
             return toDto(signalement);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Statut invalide: " + statutStr);
@@ -145,6 +160,16 @@ public class SignalementService {
                 signalement.setDateTermine(LocalDateTime.now());
             }
             signalement.setStatut(newStatut);
+            
+            // Créer une notification pour le changement de statut
+            if (oldStatut != newStatut) {
+                notificationService.creerNotificationChangementStatut(
+                    signalement.getId(),
+                    signalement.getTitre(),
+                    oldStatut.name(),
+                    newStatut.name()
+                );
+            }
         }
 
         signalementRepository.save(signalement);

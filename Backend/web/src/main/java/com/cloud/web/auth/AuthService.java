@@ -10,6 +10,8 @@ import com.cloud.web.utilisateur.RoleUtilisateur;
 import com.cloud.web.sync.dto.UtilisateurSyncDto;
 import com.cloud.web.config.AppConfigService;
 import com.google.cloud.firestore.Firestore;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.UserRecord;
 import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,6 +64,63 @@ public class AuthService {
         utilisateur.setTentativesEchouees(0);
         utilisateur.setEstBloque(false);
         utilisateurRepository.save(utilisateur);
+    }
+
+    @Transactional
+    public void createUser(com.cloud.web.auth.dto.CreateUserRequest req) {
+        if (utilisateurRepository.existsByEmail(req.getEmail().toLowerCase())) {
+            throw new IllegalArgumentException("Email déjà utilisé");
+        }
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setEmail(req.getEmail().toLowerCase());
+        utilisateur.setNomComplet(req.getFullName());
+        utilisateur.setMotDePasse(passwordEncoder.encode(req.getPassword()));
+
+        RoleUtilisateur role = RoleUtilisateur.UTILISATEUR;
+        if (req.getRole() != null && !req.getRole().isBlank()) {
+            try {
+                role = RoleUtilisateur.valueOf(req.getRole().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // rôle invalide → on garde UTILISATEUR
+            }
+        }
+        utilisateur.setRole(role);
+        utilisateur.setTentativesEchouees(0);
+        utilisateur.setEstBloque(false);
+        utilisateurRepository.save(utilisateur);
+
+        // 1. Créer l'utilisateur dans Firebase Authentication
+        try {
+            UserRecord.CreateRequest firebaseReq = new UserRecord.CreateRequest()
+                    .setEmail(utilisateur.getEmail())
+                    .setPassword(req.getPassword())
+                    .setDisplayName(req.getFullName())
+                    .setEmailVerified(true);
+            UserRecord userRecord = FirebaseAuth.getInstance().createUser(firebaseReq);
+            System.out.println("✅ Utilisateur créé dans Firebase Auth: " + userRecord.getUid());
+        } catch (Exception e) {
+            System.err.println("⚠️ Erreur création Firebase Auth: " + e.getMessage());
+        }
+
+        // 2. Synchroniser vers Firestore (document utilisateur)
+        try {
+            Firestore firestore = FirestoreClient.getFirestore();
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("nom", utilisateur.getNom() != null ? utilisateur.getNom() : "");
+            userData.put("prenom", utilisateur.getPrenom() != null ? utilisateur.getPrenom() : "");
+            userData.put("email", utilisateur.getEmail());
+            userData.put("motDePasse", utilisateur.getMotDePasse());
+            userData.put("role", utilisateur.getRole().name());
+            userData.put("telephone", "");
+            userData.put("estBloque", false);
+            userData.put("tentativesEchouees", 0);
+
+            String docId = utilisateur.getEmail().replace(".", "_");
+            firestore.collection("utilisateurs").document(docId).set(userData);
+            System.out.println("✅ Utilisateur synchronisé vers Firestore: " + utilisateur.getEmail());
+        } catch (Exception e) {
+            System.err.println("⚠️ Erreur sync Firestore création utilisateur: " + e.getMessage());
+        }
     }
 
     @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})

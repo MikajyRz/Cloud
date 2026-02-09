@@ -13,10 +13,10 @@ public class SignalementSyncDto {
     private String id;
     private String titre;
     private String description;
-    private Double latitude;
-    private Double longitude;
-    private Double surfaceM2;
-    private Double budget;
+    private Object latitude;
+    private Object longitude;
+    private Object surfaceM2;
+    private Object budget;
     private String statut;
     private String emailUtilisateur;
     
@@ -24,6 +24,7 @@ public class SignalementSyncDto {
     private List<String> imageUrls;
     
     // Champs du mobile (non utilisés pour PostgreSQL mais présents dans Firestore)
+    private String uid;
     private String deviceId;
     private String userEmail;
     private String userName;
@@ -32,6 +33,15 @@ public class SignalementSyncDto {
     private Object dateSignalement;
 
     public SignalementSyncDto() {}
+
+    private static Double toDouble(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).doubleValue();
+        if (val instanceof String) {
+            try { return Double.parseDouble((String) val); } catch (NumberFormatException e) { return null; }
+        }
+        return null;
+    }
 
     public SignalementSyncDto(Signalement sig) {
         this.id = sig.getId().toString();
@@ -58,14 +68,23 @@ public class SignalementSyncDto {
     public Signalement toEntity(UtilisateurRepository utilisateurRepository) {
         Signalement sig = new Signalement();
         if (id != null && !id.isEmpty()) {
-            sig.setId(UUID.fromString(id));
+            try {
+                sig.setId(UUID.fromString(id));
+            } catch (IllegalArgumentException e) {
+                // ID Firestore non-UUID → générer un UUID déterministe
+                sig.setId(UUID.nameUUIDFromBytes(id.getBytes()));
+            }
         }
         sig.setTitre(titre);
         sig.setDescription(description);
-        sig.setLatitude(BigDecimal.valueOf(latitude));
-        sig.setLongitude(BigDecimal.valueOf(longitude));
-        if (surfaceM2 != null) sig.setSurfaceM2(BigDecimal.valueOf(surfaceM2));
-        if (budget != null) sig.setBudget(BigDecimal.valueOf(budget));
+        Double lat = toDouble(latitude);
+        Double lng = toDouble(longitude);
+        if (lat != null) sig.setLatitude(BigDecimal.valueOf(lat));
+        if (lng != null) sig.setLongitude(BigDecimal.valueOf(lng));
+        Double surf = toDouble(surfaceM2);
+        Double bdg = toDouble(budget);
+        if (surf != null) sig.setSurfaceM2(BigDecimal.valueOf(surf));
+        if (bdg != null) sig.setBudget(BigDecimal.valueOf(bdg));
         sig.setStatut(StatutTravaux.valueOf(statut));
         
         // Convertir List<String> en JSON pour stockage
@@ -94,14 +113,17 @@ public class SignalementSyncDto {
     public void setTitre(String titre) { this.titre = titre; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public Double getLatitude() { return latitude; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
-    public Double getLongitude() { return longitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
-    public Double getSurfaceM2() { return surfaceM2; }
-    public void setSurfaceM2(Double surfaceM2) { this.surfaceM2 = surfaceM2; }
-    public Double getBudget() { return budget; }
-    public void setBudget(Double budget) { this.budget = budget; }
+    public Object getLatitude() { return latitude; }
+    public void setLatitude(Object latitude) { this.latitude = latitude; }
+    public Object getLongitude() { return longitude; }
+    public void setLongitude(Object longitude) { this.longitude = longitude; }
+    public Object getSurfaceM2() { return surfaceM2; }
+    public void setSurfaceM2(Object surfaceM2) { this.surfaceM2 = surfaceM2; }
+    public Object getBudget() { return budget; }
+    public void setBudget(Object budget) { this.budget = budget; }
+    
+    public String getUid() { return uid; }
+    public void setUid(String uid) { this.uid = uid; }
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
     

@@ -10,6 +10,8 @@ public class UtilisateurSyncDto {
     private String role;
     private String motDePasse;
     private String telephone;
+    private int tentativesEchouees;
+    private boolean estBloque;
 
     public UtilisateurSyncDto() {}
 
@@ -20,6 +22,8 @@ public class UtilisateurSyncDto {
         this.role = u.getRole().name();
         this.motDePasse = u.getMotDePasse();
         this.telephone = u.getTelephone();
+        this.tentativesEchouees = u.getTentativesEchouees();
+        this.estBloque = Boolean.TRUE.equals(u.getEstBloque());
     }
 
     public Utilisateur toEntity() {
@@ -30,6 +34,8 @@ public class UtilisateurSyncDto {
         u.setRole(mapRole(role));
         u.setMotDePasse(motDePasse != null ? motDePasse : "");
         u.setTelephone(telephone);
+        u.setTentativesEchouees(tentativesEchouees);
+        u.setEstBloque(estBloque);
         return u;
     }
     
@@ -65,4 +71,8 @@ public class UtilisateurSyncDto {
     public void setMotDePasse(String motDePasse) { this.motDePasse = motDePasse; }
     public String getTelephone() { return telephone; }
     public void setTelephone(String telephone) { this.telephone = telephone; }
+    public int getTentativesEchouees() { return tentativesEchouees; }
+    public void setTentativesEchouees(int tentativesEchouees) { this.tentativesEchouees = tentativesEchouees; }
+    public boolean isEstBloque() { return estBloque; }
+    public void setEstBloque(boolean estBloque) { this.estBloque = estBloque; }
 }
