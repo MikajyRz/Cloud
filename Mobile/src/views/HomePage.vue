@@ -1,113 +1,155 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
-        <ion-title>
-          <div class="header-title">
-            <ion-icon :icon="mapOutline" />
-            <span>Accueil</span>
+    <!-- Top bar -->
+    <ion-header class="ion-no-border home-header">
+      <ion-toolbar>
+        <div class="toolbar-inner">
+          <div class="toolbar-left">
+            <div class="toolbar-logo">
+              <ion-icon :icon="constructOutline" />
+            </div>
+            <div class="toolbar-text">
+              <span class="toolbar-title">Cloud S5</span>
+              <span class="toolbar-sub" v-if="reportsCount > 0">{{ reportsCount }} signalement{{ reportsCount > 1 ? 's' : '' }}</span>
+            </div>
           </div>
-          <div class="header-subtitle" v-if="reportsCount > 0">
-            {{ reportsCount }} signalement{{ reportsCount > 1 ? 's' : '' }} affiché{{ reportsCount > 1 ? 's' : '' }}
+          <div class="toolbar-right">
+            <button class="icon-btn notif-btn" @click="goToNotifications">
+              <ion-icon :icon="notificationsOutline" />
+              <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+            </button>
+            <button class="icon-btn" @click="onLogout" :disabled="loading">
+              <ion-icon :icon="logOutOutline" />
+            </button>
           </div>
-        </ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="onLogout" :disabled="loading">
-            <ion-icon slot="icon-only" :icon="logOutOutline" />
-          </ion-button>
-        </ion-buttons>
+        </div>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
       <div class="map" ref="mapEl" />
 
-      <!-- Bouton flottant pour la localisation -->
+      <!-- Locate FAB -->
       <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="fab-locate">
-        <ion-fab-button @click="locateMe" :disabled="loading" :color="isTracking ? 'primary' : 'light'">
+        <ion-fab-button @click="locateMe" :disabled="loading" :class="{ tracking: isTracking }">
           <ion-icon :icon="isTracking ? navigateOutline : locationOutline" />
         </ion-fab-button>
       </ion-fab>
 
-      <div class="overlay-container">
-        <div class="overlay-card">
-          <div class="user-info" v-if="userEmail">
-            <ion-icon :icon="personCircleOutline" class="user-icon" />
-            <div class="user-details">
-              <span class="user-label">Connecté en tant que</span>
-              <span class="user-email">{{ userEmail }}</span>
+      <!-- Overlay Panel -->
+      <div class="overlay-panel">
+        <div class="panel-card">
+          <!-- User row -->
+          <div class="user-row" v-if="userEmail">
+            <div class="avatar-circle">
+              <ion-icon :icon="personCircleOutline" />
+            </div>
+            <div class="user-meta">
+              <span class="user-name">{{ userEmail }}</span>
+              <span class="user-role">Utilisateur</span>
             </div>
           </div>
 
-          <ion-item lines="none" class="toggle-item">
-            <ion-icon :icon="listOutline" slot="start" color="primary" />
-            <ion-label>Mes signalements</ion-label>
-            <ion-toggle v-model="mineOnlyProxy" slot="end" />
-          </ion-item>
+          <!-- Filter toggle -->
+          <div class="filter-row">
+            <div class="filter-label">
+              <ion-icon :icon="filterOutline" />
+              <span>Mes signalements uniquement</span>
+            </div>
+            <ion-toggle v-model="mineOnlyProxy" />
+          </div>
 
           <ion-text color="danger" v-if="error" class="error-text">
             <p>{{ error }}</p>
           </ion-text>
+
+          <!-- Stats grid -->
+          <div class="stats-grid" v-if="reports.length > 0">
+            <div class="stat-card">
+              <span class="stat-number">{{ reports.length }}</span>
+              <span class="stat-label">Points</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-number">{{ totalSurface.toFixed(0) }}</span>
+              <span class="stat-label">m² total</span>
+            </div>
+            <div class="stat-card accent">
+              <span class="stat-number">{{ avancementPct }}%</span>
+              <span class="stat-label">Avancement</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-number">{{ totalBudget.toFixed(0) }}</span>
+              <span class="stat-label">€ budget</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <ion-modal :is-open="isCreateOpen" @didDismiss="isCreateOpen = false" :initial-breakpoint="0.5" :breakpoints="[0, 0.5, 0.8]">
-        <div class="modal-content ion-padding">
-          <div class="modal-header">
-            <div class="modal-handle"></div>
-            <h2>Nouveau Signalement</h2>
-            <p class="modal-coords" v-if="createLatLng">Lat: {{ createLatLng.lat.toFixed(6) }} | Lng: {{ createLatLng.lng.toFixed(6) }}</p>
-          </div>
+      <!-- Create Report Modal -->
+      <ion-modal :is-open="isCreateOpen" @didDismiss="isCreateOpen = false" :initial-breakpoint="0.55" :breakpoints="[0, 0.55, 0.85]">
+        <div class="modal-sheet">
+          <div class="sheet-handle"></div>
+          <h2 class="sheet-title">Nouveau signalement</h2>
+          <p class="sheet-coords" v-if="createLatLng">📍 {{ createLatLng.lat.toFixed(5) }}, {{ createLatLng.lng.toFixed(5) }}</p>
 
           <div class="form-scroll-area">
-            <ion-list lines="none" class="form-list">
-              <div class="modal-input-wrapper">
-                <ion-icon :icon="createOutline" class="input-icon" />
-                <ion-item>
-                  <ion-input
-                    v-model="newReportTitle"
-                    placeholder="Titre du signalement"
-                    label-placement="stacked"
-                  />
-                </ion-item>
+            <div class="field-group">
+              <label class="field-label">Titre</label>
+              <div class="field-input">
+                <ion-icon :icon="createOutline" class="fi-icon" />
+                <ion-input v-model="newReportTitle" placeholder="Ex: Nid-de-poule RN7" />
               </div>
+            </div>
 
-              <div class="modal-input-wrapper textarea-wrapper">
-                <ion-icon :icon="documentTextOutline" class="input-icon" />
-                <ion-item>
-                  <ion-textarea
-                    v-model="newReportDescription"
-                    placeholder="Description détaillée..."
-                    :rows="4"
-                  />
-                </ion-item>
+            <div class="field-group">
+              <label class="field-label">Description</label>
+              <div class="field-input textarea">
+                <ion-icon :icon="documentTextOutline" class="fi-icon" />
+                <ion-textarea v-model="newReportDescription" placeholder="Décrivez le problème..." :rows="3" />
               </div>
+            </div>
 
-              <div class="modal-input-wrapper image-upload-wrapper">
-                <input type="file" @change="onFileChange" accept="image/*" ref="fileInput" style="display: none" multiple />
-                <ion-button fill="clear" @click="triggerFileInput">
-                  <ion-icon slot="start" :icon="cameraIcon" />
-                  Ajouter une image
-                </ion-button>
-                <div v-if="newReportImagePreviews.length > 0" class="image-previews-container">
-                  <div v-for="(preview, index) in newReportImagePreviews" :key="index" class="image-preview">
-                    <img :src="preview" />
-                    <ion-button fill="clear" color="danger" @click="removeImage(index)" class="remove-image-btn">
-                      <ion-icon slot="icon-only" :icon="closeIcon" />
-                    </ion-button>
-                  </div>
+            <div class="field-row">
+              <div class="field-group half">
+                <label class="field-label">Surface (m²)</label>
+                <div class="field-input">
+                  <ion-icon :icon="cubeOutline" class="fi-icon" />
+                  <ion-input v-model="newReportSurface" type="number" placeholder="0" />
                 </div>
               </div>
-            </ion-list>
+              <div class="field-group half">
+                <label class="field-label">Budget (€)</label>
+                <div class="field-input">
+                  <ion-icon :icon="walletOutline" class="fi-icon" />
+                  <ion-input v-model="newReportBudget" type="number" placeholder="0" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Image upload -->
+            <div class="field-group">
+              <label class="field-label">Photos</label>
+              <input type="file" @change="onFileChange" accept="image/*" ref="fileInput" style="display: none" multiple />
+              <button class="upload-btn" @click="triggerFileInput">
+                <ion-icon :icon="cameraIcon" />
+                <span>Ajouter des photos</span>
+              </button>
+              <div v-if="newReportImagePreviews.length > 0" class="previews-row">
+                <div v-for="(preview, index) in newReportImagePreviews" :key="index" class="preview-thumb">
+                  <img :src="preview" />
+                  <button class="remove-thumb" @click="removeImage(index)">
+                    <ion-icon :icon="closeIcon" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="modal-actions">
-            <ion-button expand="block" fill="clear" color="medium" @click="isCreateOpen = false">
-              Annuler
-            </ion-button>
-            <ion-button expand="block" color="primary" :disabled="loading || !newReportTitle.trim()" @click="handleCreateReport">
+          <div class="sheet-actions">
+            <ion-button fill="outline" color="medium" @click="isCreateOpen = false">Annuler</ion-button>
+            <ion-button color="primary" :disabled="loading || !newReportTitle.trim()" @click="handleCreateReport">
               <ion-spinner v-if="loading" name="crescent" />
-              <span v-else>Enregistrer le signalement</span>
+              <span v-else>Enregistrer</span>
             </ion-button>
           </div>
         </div>
@@ -125,14 +167,10 @@ import {
   IonPage,
   IonHeader,
   IonToolbar,
-  IonTitle,
   IonContent,
   IonButton,
-  IonButtons,
   IonIcon,
   IonText,
-  IonItem,
-  IonLabel,
   IonToggle,
   IonFab,
   IonFabButton,
@@ -140,28 +178,37 @@ import {
   IonInput,
   IonTextarea,
   IonSpinner,
-  IonList,
   onIonViewDidEnter,
+  onIonViewWillLeave,
 } from '@ionic/vue'
 import {
   logOutOutline,
   locationOutline,
   personCircleOutline,
-  mapOutline,
-  listOutline,
+  constructOutline,
+  filterOutline,
   createOutline,
   documentTextOutline,
   navigateOutline,
+  notificationsOutline,
   camera as cameraIcon,
   closeCircleOutline as closeIcon,
+  cubeOutline,
+  walletOutline,
 } from 'ionicons/icons'
 import { Geolocation } from '@capacitor/geolocation'
 import { useAuth } from '@/composables/useAuth'
 import { useReports, type ReportDoc } from '@/composables/useReports'
+import { useNotifications } from '@/composables/useNotifications'
 
 const router = useRouter()
 const { currentUser, getCurrentUser, logout } = useAuth()
 const { createReport, subscribeReports } = useReports()
+const { unreadCount } = useNotifications()
+
+const goToNotifications = () => {
+  router.push('/notifications')
+}
 
 const mapEl = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
@@ -210,11 +257,33 @@ const isCreateOpen = ref(false)
 const createLatLng = ref<L.LatLng | null>(null)
 const newReportTitle = ref('')
 const newReportDescription = ref('')
+const newReportSurface = ref<number | null>(null)
+const newReportBudget = ref<number | null>(null)
+const newReportFiles = ref<File[]>([])
 const newReportImagePreviews = ref<string[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const userEmail = computed(() => currentUser.value?.email ?? null)
 const reportsCount = computed(() => reports.value.length)
+
+// Tableau récapitulatif
+const totalSurface = computed(() => 
+  reports.value.reduce((acc, r) => acc + (Number((r as any).surfaceM2) || 0), 0)
+)
+const totalBudget = computed(() => 
+  reports.value.reduce((acc, r) => acc + (Number((r as any).budget) || 0), 0)
+)
+const avancementPct = computed(() => {
+  const total = reports.value.length
+  if (total === 0) return 0
+  const score = reports.value.reduce((acc, r) => {
+    const s = r.status ?? 'NOUVEAU'
+    if (s === 'TERMINE') return acc + 100
+    if (s === 'EN_COURS') return acc + 50
+    return acc
+  }, 0)
+  return Math.round(score / total)
+})
 
 const triggerFileInput = () => {
   fileInput.value?.click()
@@ -223,18 +292,23 @@ const triggerFileInput = () => {
 const onFileChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files) {
+    const filesArray = Array.from(target.files)
+    newReportFiles.value.push(...filesArray)
+
+    // Generate previews
     try {
-      const promises = Array.from(target.files).map(file => imageToBase64(file));
-      const base64Strings = await Promise.all(promises);
-      newReportImagePreviews.value.push(...base64Strings.filter(s => s !== null) as string[]);
+      const promises = filesArray.map(file => imageToBase64(file))
+      const base64Strings = await Promise.all(promises)
+      newReportImagePreviews.value.push(...base64Strings.filter(s => s !== null) as string[])
     } catch (e) {
-      console.error('Error converting images to Base64:', e)
-      error.value = 'Erreur lors du traitement des images.'
+      console.error('Error generating image previews:', e)
+      error.value = 'Erreur lors de la génération des aperçus.'
     }
   }
 }
 
 const removeImage = (index: number) => {
+  newReportFiles.value.splice(index, 1)
   newReportImagePreviews.value.splice(index, 1)
 }
 
@@ -246,6 +320,10 @@ const handleCreateReport = async () => {
     description: newReportDescription.value,
     lat: createLatLng.value.lat,
     lng: createLatLng.value.lng,
+    surfaceM2: newReportSurface.value,
+    budget: newReportBudget.value,
+    imageUrls: newReportImagePreviews.value,
+    imageUrlsLength: newReportImagePreviews.value.length,
   })
 
   error.value = null
@@ -256,7 +334,9 @@ const handleCreateReport = async () => {
       description: newReportDescription.value.trim(),
       latitude: createLatLng.value.lat,
       longitude: createLatLng.value.lng,
-      imageUrls: newReportImagePreviews.value,
+      surfaceM2: newReportSurface.value,
+      budget: newReportBudget.value,
+      imageUrls: newReportImagePreviews.value,  // Images en base64
     })
     isCreateOpen.value = false
   } catch (e) {
@@ -271,6 +351,9 @@ watch(isCreateOpen, (isOpen) => {
   if (!isOpen) {
     newReportTitle.value = ''
     newReportDescription.value = ''
+    newReportSurface.value = null
+    newReportBudget.value = null
+    newReportFiles.value = []
     newReportImagePreviews.value = []
     if (fileInput.value) {
       fileInput.value.value = ''
@@ -333,9 +416,8 @@ onMounted(() => {
 
   const antananarivoBounds = L.latLngBounds(L.latLng(-19.1, 47.3), L.latLng(-18.7, 47.7))
 
-  const tileUrl =
-    (import.meta.env.VITE_MOBILE_TILE_URL as string | undefined) ??
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  // Tuiles OpenStreetMap en ligne
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
   map = L.map(mapEl.value, {
     zoomControl: true,
@@ -348,7 +430,6 @@ onMounted(() => {
   const tileLayer = L.tileLayer(tileUrl, {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors',
-    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/HgAGgwJ/lK3Q6wAAAABJRU5ErkJggg==',
   })
   
   tileLayer.on('tileerror', (e) => {
@@ -369,6 +450,7 @@ onMounted(() => {
     unsubReports = subscribeReports(
       { mineOnly: mineOnly.value },
       (rows) => {
+        console.log('📍 Signalements reçus:', rows.length, 'mineOnly:', mineOnly.value)
         reports.value = rows
         renderReportMarkers()
       },
@@ -382,6 +464,8 @@ onMounted(() => {
 const renderReportMarkers = () => {
   if (!reportLayer) return
   reportLayer.clearLayers()
+  
+  console.log('🗺️ Rendering', reports.value.length, 'marqueurs sur la carte')
 
   reports.value.forEach((r) => {
     const m = L.marker([r.latitude, r.longitude], { icon: reportIcon })
@@ -470,11 +554,25 @@ const updateMyLocation = (lat: number, lng: number, centerMap = true) => {
   }
 }
 
+// Quand on revient sur la page (Ionic cache les pages)
 onIonViewDidEnter(() => {
+  console.log('🏠 HomePage - onIonViewDidEnter, reports:', reports.value.length, 'user:', currentUser.value?.email)
+  
   if (!map) return
+  
+  // Rafraîchir la taille de la carte
   setTimeout(() => {
     map?.invalidateSize()
   }, 50)
+  
+  // Si on a perdu les signalements (0 marqueurs mais utilisateur connecté), réabonner
+  if (reports.value.length === 0 && currentUser.value) {
+    console.log('🔄 Réabonnement aux signalements car liste vide...')
+    resubscribeReports()
+  } else {
+    // Re-render les marqueurs au cas où les données ont changé
+    renderReportMarkers()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -509,301 +607,207 @@ const mineOnlyProxy = computed({
 </script>
 
 <style scoped>
-.map {
-  width: 100%;
-  height: 100%;
+/* ── Toolbar ───────────────────────────── */
+.home-header ion-toolbar {
+  --background: #0f172a;
+  --border-width: 0;
+  padding: 8px 0;
 }
-
-.overlay-container {
-  position: absolute;
-  top: 16px;
-  left: 0;
-  right: 0;
+.toolbar-inner {
+  display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px;
-  z-index: 1000;
-  pointer-events: none;
+}
+.toolbar-left { display: flex; align-items: center; gap: 10px; }
+.toolbar-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 18px;
+}
+.toolbar-text { display: flex; flex-direction: column; }
+.toolbar-title { font-size: 17px; font-weight: 700; color: #f8fafc; }
+.toolbar-sub { font-size: 11px; color: #94a3b8; }
+.toolbar-right { display: flex; align-items: center; gap: 4px; }
+
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 10px; border: none;
+  background: rgba(255,255,255,0.1); color: #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; position: relative;
+  transition: background 0.2s;
+}
+.icon-btn:active { background: rgba(255,255,255,0.2); }
+
+.notif-badge {
+  position: absolute; top: 2px; right: 2px;
+  background: #ef4444; color: white; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; border: 2px solid #0f172a;
 }
 
-.overlay-card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+/* ── Map ───────────────────────────────── */
+.map { width: 100%; height: 100%; }
+
+/* ── FAB ───────────────────────────────── */
+.fab-locate { margin-bottom: 80px; margin-right: 8px; }
+.fab-locate ion-fab-button {
+  --background: #ffffff; --color: #334155;
+  --box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.fab-locate ion-fab-button.tracking {
+  --background: #4f46e5; --color: white;
+}
+
+/* ── Overlay Panel ─────────────────────── */
+.overlay-panel {
+  position: absolute; top: 12px; left: 0; right: 0;
+  padding: 0 12px; z-index: 1000; pointer-events: none;
+}
+.panel-card {
+  background: rgba(255,255,255,0.96); backdrop-filter: blur(16px);
+  border-radius: 16px; padding: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
   pointer-events: auto;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+.user-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
 }
-
-.user-icon {
-  font-size: 40px;
-  margin-right: 12px;
-  color: var(--ion-color-primary);
+.avatar-circle {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5, #818cf8);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 24px;
 }
+.user-meta { display: flex; flex-direction: column; }
+.user-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.user-role { font-size: 11px; color: #94a3b8; }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
+.filter-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
 }
-
-.user-label {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 4px;
+.filter-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: #475569; font-weight: 500;
 }
+.filter-label ion-icon { color: #4f46e5; font-size: 18px; }
 
-.user-email {
-  font-weight: 500;
-  font-size: 14px;
-  color: #333;
+.error-text { font-size: 13px; text-align: center; margin: 8px 0; }
+
+/* ── Stats Grid ────────────────────────── */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  padding-top: 12px; border-top: 1px solid #f1f5f9;
 }
-
-.toggle-item {
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  margin-bottom: 8px;
-}
-
-.error-text {
-  font-size: 14px;
-  margin-top: 8px;
+.stat-card {
+  background: #f8fafc; border-radius: 12px; padding: 12px 10px;
   text-align: center;
 }
+.stat-card.accent { background: #eef2ff; }
+.stat-number { display: block; font-size: 20px; font-weight: 800; color: #0f172a; }
+.stat-card.accent .stat-number { color: #4f46e5; }
+.stat-label { display: block; font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
-.fab-locate {
-  margin-bottom: 80px;
-  margin-right: 16px;
-}
-
-.modal-content {
-  border-radius: 16px 16px 0 0;
-}
-
-.modal-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.modal-handle {
-  width: 40px;
-  height: 4px;
-  background: #ddd;
-  border-radius: 2px;
+/* ── Modal Sheet ───────────────────────── */
+.modal-sheet { padding: 20px 20px 24px; }
+.sheet-handle {
+  width: 40px; height: 4px; background: #e2e8f0; border-radius: 2px;
   margin: 0 auto 16px;
 }
+.sheet-title { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 4px; text-align: center; }
+.sheet-coords { font-size: 12px; color: #94a3b8; text-align: center; margin: 0 0 20px; }
 
-.modal-coords {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
+.form-scroll-area { max-height: 55vh; overflow-y: auto; }
+
+.field-group { margin-bottom: 16px; }
+.field-label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+.field-input {
+  display: flex; align-items: center; gap: 8px;
+  background: #f1f5f9; border-radius: 12px; padding: 0 14px; height: 48px;
+  border: 2px solid transparent; transition: all 0.2s;
+}
+.field-input:focus-within { background: #fff; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+.field-input.textarea { height: auto; padding: 10px 14px; align-items: flex-start; }
+.fi-icon { font-size: 18px; color: #94a3b8; flex-shrink: 0; }
+.field-input:focus-within .fi-icon { color: #4f46e5; }
+.field-input ion-input, .field-input ion-textarea {
+  --padding-start: 0; --padding-end: 0; --background: transparent;
+  font-size: 14px; flex: 1; --color: #0f172a;
+}
+.field-row { display: flex; gap: 10px; }
+.field-group.half { flex: 1; }
+
+.upload-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 12px 16px; border-radius: 12px; border: 2px dashed #cbd5e1;
+  background: #f8fafc; color: #4f46e5; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.upload-btn:active { border-color: #4f46e5; background: #eef2ff; }
+.upload-btn ion-icon { font-size: 20px; }
+
+.previews-row { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 4px; }
+.preview-thumb { position: relative; flex-shrink: 0; }
+.preview-thumb img { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; }
+.remove-thumb {
+  position: absolute; top: -6px; right: -6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #ef4444; color: white; border: 2px solid white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; cursor: pointer;
 }
 
-.form-scroll-area {
-  max-height: 60vh;
-  overflow-y: auto;
-}
+.sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+.sheet-actions ion-button { flex: 1; --border-radius: 12px; font-weight: 600; }
 
-.form-list {
-  background: transparent;
-}
-
-.modal-input-wrapper {
-  position: relative;
-  margin-bottom: 16px;
-}
-
-.input-icon {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  color: var(--ion-color-primary);
-}
-
-.modal-input-wrapper ion-item {
-  --padding-start: 48px;
-  --background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.textarea-wrapper .input-icon {
-  top: 24px;
-  transform: none;
-}
-
-.textarea-wrapper ion-item {
-  --padding-start: 48px;
-  --padding-top: 12px;
-}
-
-.image-upload-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.image-previews-container {
-  display: flex;
-  overflow-x: auto;
-  gap: 16px;
-  margin-top: 16px;
-  padding-bottom: 8px; /* For scrollbar */
-}
-
-.image-preview {
-  position: relative;
-  flex-shrink: 0; /* Prevent images from shrinking */
-}
-
-.image-preview img {
-  width: 150px; /* Fixed width for consistency */
-  height: 150px; /* Fixed height for consistency */
-  object-fit: cover; /* Crop image to fit */
-  border-radius: 8px;
-}
-
-.remove-image-btn {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-.modal-actions ion-button {
-  flex: 1;
-  margin: 0;
-}
-
-:deep(.report-marker-icon) {
-  background: transparent;
-  border: none;
-}
-
-:deep(.radar-container) {
-  position: relative;
-  width: 70px;
-  height: 70px;
-}
-
+/* ── Map Markers (deep) ────────────────── */
+:deep(.report-marker-icon) { background: transparent; border: none; }
+:deep(.radar-container) { position: relative; width: 70px; height: 70px; }
 :deep(.radar-ping) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  border: 2px solid var(--ion-color-primary);
-  animation: ping 2s infinite linear;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 0; height: 0; border-radius: 50%;
+  border: 2px solid #4f46e5; animation: ping 2s infinite linear;
 }
-
-:deep(.radar-ping.second) {
-  animation-delay: 0.66s;
-}
-
-:deep(.radar-ping.third) {
-  animation-delay: 1.33s;
-}
-
+:deep(.radar-ping.second) { animation-delay: 0.66s; }
+:deep(.radar-ping.third) { animation-delay: 1.33s; }
 :deep(.megaphone-marker) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  background: var(--ion-color-primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 40px; height: 40px; background: #4f46e5; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.35);
 }
-
 :deep(.marker-inner) {
-  width: 30px;
-  height: 30px;
-  background: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 30px; height: 30px; background: white; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
 }
-
 :deep(.megaphone-icon) {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  background: var(--ion-color-primary);
+  display: inline-block; width: 16px; height: 16px; background: #4f46e5;
   clip-path: polygon(0% 20%, 40% 20%, 40% 0%, 100% 50%, 40% 100%, 40% 80%, 0% 80%);
 }
 
-:deep(.location-marker-icon) {
-  background: transparent;
-  border: none;
-}
-
-:deep(.location-pulse) {
-  position: relative;
-  width: 60px;
-  height: 60px;
-}
-
+:deep(.location-marker-icon) { background: transparent; border: none; }
+:deep(.location-pulse) { position: relative; width: 60px; height: 60px; }
 :deep(.pulse-ring) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(var(--ion-color-primary-rgb), 0.2);
-  animation: pulse 1.5s infinite;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(79,70,229,0.2); animation: pulse 1.5s infinite;
 }
-
 :deep(.location-dot) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 20px;
-  height: 20px;
-  background: var(--ion-color-primary);
-  border-radius: 50%;
-  border: 3px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 20px; height: 20px; background: #4f46e5; border-radius: 50%;
+  border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 @keyframes ping {
-  0% {
-    width: 0;
-    height: 0;
-    opacity: 1;
-  }
-  100% {
-    width: 70px;
-    height: 70px;
-    opacity: 0;
-  }
+  0% { width: 0; height: 0; opacity: 1; }
+  100% { width: 70px; height: 70px; opacity: 0; }
 }
-
 @keyframes pulse {
-  0% {
-    transform: translate(-50%, -50%) scale(0.8);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(2);
-    opacity: 0;
-  }
+  0% { transform: translate(-50%,-50%) scale(0.8); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(2); opacity: 0; }
 }
 </style>

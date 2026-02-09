@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: cloud_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cloud_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cloud_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: cloud_web
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cloud_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      # Firebase Configuration (REMPLACE l'URL par la tienne)
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-admin.json
+      FIREBASE_DATABASE_URL: https://mobile-e15b6-default-rtdb.firebaseio.com/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloud_network
+    restart: unless-stopped
+    volumes:
+      - ./firebase-admin.json:/app/firebase-admin.json:ro
+
+volumes:
+  postgres_data:
+
+networks:
+  cloud_network:
+    driver: bridge

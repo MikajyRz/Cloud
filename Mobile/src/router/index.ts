@@ -9,16 +9,24 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/login',
-    component: () => import('@/views/LoginPage.vue')
-  },
-  {
-    path: '/register',
-    component: () => import('@/views/RegisterPage.vue')
+    component: () => import('@/views/LoginPage.vue'),
+    meta: { transition: 'slide-left' }
   },
   {
     path: '/home',
     component: () => import('@/views/HomePage.vue'),
-    meta: { requiresAuth: true }
+    meta: { 
+      requiresAuth: true,
+      transition: 'slide-right'
+    }
+  },
+  {
+    path: '/notifications',
+    component: () => import('@/views/NotificationsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      transition: 'slide-right'
+    }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -31,11 +39,21 @@ const router = createRouter({
   routes
 })
 
+// Animation de transition pour mobile
+router.beforeEach((to, from) => {
+  const toDepth = to.meta.transition
+  const fromDepth = from.meta.transition
+  
+  if (toDepth && fromDepth) {
+    to.meta.transitionName = 'slide'
+  }
+})
+
 router.beforeEach(async (to: RouteLocationNormalized) => {
   const { getCurrentUser } = useAuth()
   const u = await getCurrentUser()
 
-  if ((to.path === '/login' || to.path === '/register') && u) {
+  if (to.path === '/login' && u) {
     return { path: '/home' }
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listLockedUsersApi, unlockUserApi, type LockedUserResponse } from '@/auth/api'
+import { listLockedUsersApi, unlockUtilisateurApi, type LockedUserResponse } from '@/auth/api'
 import { useAuth } from '@/auth/AuthContext'
 
 export default function LockedUsersPage() {
@@ -45,7 +45,7 @@ export default function LockedUsersPage() {
 
     setUnlockingEmail(email)
     try {
-      await unlockUserApi(token, email)
+      await unlockUtilisateurApi(token, email)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

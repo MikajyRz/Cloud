@@ -1,6 +1,7 @@
 package com.cloud.web.auth;
 
 import com.cloud.web.auth.dto.AuthResponse;
+import com.cloud.web.auth.dto.CreateUserRequest;
 import com.cloud.web.auth.dto.LoginRequest;
 import com.cloud.web.auth.dto.SignupRequest;
 import com.cloud.web.auth.dto.UnlockRequest;
@@ -13,9 +14,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthFacade authService;
+    private final AuthService authService;
 
-    public AuthController(AuthFacade authService) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
@@ -34,6 +35,13 @@ public class AuthController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<Void> unlock(@Valid @RequestBody UnlockRequest req) {
         authService.unlockUser(req.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/create-user")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<Void> createUser(@Valid @RequestBody CreateUserRequest req) {
+        authService.createUser(req);
         return ResponseEntity.ok().build();
     }
 }

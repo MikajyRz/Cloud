@@ -58,6 +58,23 @@ public class JwtService {
         return new TokenAndJti(token, jti, exp);
     }
 
+    public TokenAndJti issueTokenWithDuration(String subject, Map<String, Object> claims, int durationMinutes) {
+        String jti = UUID.randomUUID().toString();
+        Instant now = Instant.now();
+        Instant exp = now.plus(durationMinutes, ChronoUnit.MINUTES);
+
+        String token = Jwts.builder()
+                .subject(subject)
+                .id(jti)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(exp))
+                .claims(claims)
+                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .compact();
+
+        return new TokenAndJti(token, jti, exp);
+    }
+
     public JwtPayload parseAndValidate(String token) {
         var jws = Jwts.parser()
                 .verifyWith(secretKey)

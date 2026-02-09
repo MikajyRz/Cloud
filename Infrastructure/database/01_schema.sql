@@ -92,7 +92,7 @@ CREATE TABLE historique_statut (
 
 CREATE TABLE firebase_sync (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_donnee VARCHAR(50), -- USER / SIGNALEMENT
+    type_donnee VARCHAR(50), -- UTILISATEUR / SIGNALEMENT
     id_reference UUID,
     sens type_sync,
     date_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -34,7 +34,9 @@ type CreateReportInput = {
   description: string
   latitude: number
   longitude: number
-  imageUrls: string[]
+  surfaceM2: number | null
+  budget: number | null
+  imageUrls: string[]  // Images en base64
 }
 
 function getCollectionName() {
@@ -57,6 +59,8 @@ export function useReports(firestore: Firestore = db) {
       uid: u.uid,
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
+      surfaceM2: input.surfaceM2,
+      budget: input.budget,
       imageUrls: input.imageUrls,
       status: 'NOUVEAU',
     })
@@ -70,13 +74,21 @@ export function useReports(firestore: Firestore = db) {
     const uid = currentUser.value?.uid
     const email = currentUser.value?.email ?? undefined
 
+    console.log('📡 subscribeReports - mineOnly:', opts.mineOnly, 'uid:', uid, 'email:', email)
+
+    // Si mineOnly mais pas d'utilisateur connecté, retourner une liste vide
+    // mais ne pas utiliser '__no_user__' qui ne retourne jamais rien
+    if (opts.mineOnly && !uid && !email) {
+      console.warn('⚠️ mineOnly activé mais aucun utilisateur connecté')
+      cb([])
+      return () => {} // Noop unsubscribe
+    }
+
     const q = !opts.mineOnly
       ? query(collectionRef.value)
       : uid
         ? query(collectionRef.value, where('uid', '==', uid))
-        : email
-          ? query(collectionRef.value, where('userEmail', '==', email))
-          : query(collectionRef.value, where('uid', '==', '__no_user__'))
+        : query(collectionRef.value, where('userEmail', '==', email))
 
     return onSnapshot(
       q,

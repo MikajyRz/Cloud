@@ -1,0 +1,23 @@
+{
+  "options": {
+    "paths": {
+      "root": "",
+      "styles": "styles",
+      "fonts": "fonts",
+      "sprites": "sprites",
+      "mbtiles": ""
+    },
+    "serveAllStyles": true
+  },
+  "styles": {
+    "basic": {
+      "style": "basic/style.json",
+      "serve_rendered": true
+    }
+  },
+  "data": {
+    "madagascar": {
+      "mbtiles": "madagascar_antananarivo.mbtiles"
+    }
+  }
+}

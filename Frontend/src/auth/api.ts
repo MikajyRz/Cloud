@@ -12,6 +12,12 @@ export type UserMeResponse = {
   role: UserRole
 }
 
+type BackendUtilisateurMeResponse = {
+  email: string
+  nomComplet: string | null
+  role: string
+}
+
 export type LockedUserResponse = {
   email: string
   nom: string | null
@@ -66,6 +72,19 @@ export type PublicReportResponse = {
   statut: StatutTravaux | null
   dateSignalement: string | null
   entrepriseNom: string | null
+  imageUrls: string[] | null
+}
+
+type BackendSignalementResponse = {
+  id: string
+  latitude: number | null
+  longitude: number | null
+  surfaceM2: number | null
+  budget: number | null
+  statut: string | null
+  dateSignalement: string | null
+  nomEntreprise: string | null
+  imageUrls: string[] | null
 }
 
 type LoginRequest = {
@@ -129,13 +148,45 @@ export async function signupApi(req: SignupRequest): Promise<void> {
   })
 }
 
-export async function listPublicReportsApi(): Promise<PublicReportResponse[]> {
-  return http<PublicReportResponse[]>('/api/reports', {
-    method: 'GET',
+export type CreateUserRequest = {
+  email: string
+  password: string
+  fullName: string
+  role: 'UTILISATEUR' | 'MANAGER'
+}
+
+export async function createUserApi(token: string, req: CreateUserRequest): Promise<void> {
+  await http<void>('/api/auth/create-user', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(req),
   })
 }
 
-export async function unlockUserApi(token: string, email: string): Promise<void> {
+export async function listPublicReportsApi(): Promise<PublicReportResponse[]> {
+  const rows = await http<BackendSignalementResponse[]>('/api/signalements', {
+    method: 'GET',
+  })
+
+  const toStatut = (v: unknown): StatutTravaux | null => {
+    if (v === 'NOUVEAU' || v === 'EN_COURS' || v === 'TERMINE') return v
+    return null
+  }
+
+  return rows.map((r) => ({
+    id: String(r.id),
+    latitude: r.latitude ?? null,
+    longitude: r.longitude ?? null,
+    surfaceM2: r.surfaceM2 ?? null,
+    budget: r.budget ?? null,
+    statut: toStatut(r.statut),
+    dateSignalement: r.dateSignalement ?? null,
+    entrepriseNom: r.nomEntreprise ?? null,
+    imageUrls: r.imageUrls ?? null,
+  }))
+}
+
+export async function unlockUtilisateurApi(token: string, email: string): Promise<void> {
   await http<void>('/api/auth/unlock', {
     method: 'POST',
     token,
@@ -144,10 +195,27 @@ export async function unlockUserApi(token: string, email: string): Promise<void>
 }
 
 export async function meApi(token: string): Promise<UserMeResponse> {
-  return http<UserMeResponse>('/api/users/me', {
+  const res = await http<BackendUtilisateurMeResponse>('/api/utilisateurs/me', {
     method: 'GET',
     token,
   })
+
+  const nomComplet = res.nomComplet ?? null
+  const parts = nomComplet ? nomComplet.trim().split(/\s+/) : []
+  const prenom = parts.length >= 2 ? parts[0] : null
+  const nom = parts.length >= 2 ? parts.slice(1).join(' ') : nomComplet
+
+  const role = ((): UserRole => {
+    if (res.role === 'VISITEUR' || res.role === 'UTILISATEUR' || res.role === 'MANAGER') return res.role
+    return 'VISITEUR'
+  })()
+
+  return {
+    email: res.email,
+    nom,
+    prenom,
+    role,
+  }
 }
 
 export async function syncReportsApi(token: string): Promise<SyncReportsResponse> {
@@ -187,5 +255,29 @@ export async function updateManagerReportApi(
     method: 'PATCH',
     token,
     body: JSON.stringify(req),
+  })
+}
+
+export type SyncResultDto = {
+  success: boolean
+  message: string
+  logs: string[]
+  errors: string[]
+  utilisateurs: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+  signalements: {
+    nouveauxDepuisFirestore: number
+    misAJourVersFirestore: number
+    total: number
+  }
+}
+
+export async function synchronizeBidirectionalApi(token: string): Promise<SyncResultDto> {
+  return http<SyncResultDto>('/api/sync/synchronize', {
+    method: 'POST',
+    token,
   })
 }
