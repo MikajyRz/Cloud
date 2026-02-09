@@ -86,7 +86,7 @@
       </div>
 
       <!-- Create Report Modal -->
-      <ion-modal :is-open="isCreateOpen" @didDismiss="isCreateOpen = false" :initial-breakpoint="0.55" :breakpoints="[0, 0.55, 0.85]">
+      <ion-modal :is-open="isCreateOpen" @didDismiss="isCreateOpen = false" :initial-breakpoint="0.95" :breakpoints="[0, 0.7, 0.95]">
         <div class="modal-sheet">
           <div class="sheet-handle"></div>
           <h2 class="sheet-title">Nouveau signalement</h2>
@@ -743,36 +743,47 @@ const mineOnlyProxy = computed({
 
 /* ── Modal Sheet ───────────────────────── */
 .modal-sheet {
-  padding: 24px 24px 28px;
+  padding: 16px 20px 20px;
   background: rgba(255,255,255,0.98); backdrop-filter: blur(24px);
   border-radius: 24px 24px 0 0;
   box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .sheet-handle {
   width: 48px; height: 6px; background: #e2e8f0; border-radius: 3px;
-  margin: 0 auto 20px; opacity: 0.6;
+  margin: 0 auto 12px; opacity: 0.6;
 }
 .sheet-title {
-  font-size: 22px; font-weight: 800; color: #1e293b;
+  font-size: 20px; font-weight: 800; color: #1e293b;
   margin: 0 0 6px; text-align: center; letter-spacing: -0.5px;
 }
 .sheet-coords {
-  font-size: 14px; color: #64748b; text-align: center;
-  margin: 0 0 24px; font-weight: 500;
-  padding: 8px 16px; background: rgba(79,70,229,0.05);
+  font-size: 13px; color: #64748b; text-align: center;
+  margin: 0 0 16px; font-weight: 500;
+  padding: 6px 12px; background: rgba(79,70,229,0.05);
   border-radius: 12px; border: 1px solid rgba(79,70,229,0.1);
 }
 
-.form-scroll-area { max-height: 60vh; overflow-y: auto; padding: 0 4px; }
+.form-scroll-area { 
+  flex: 1;
+  overflow-y: auto; 
+  overflow-x: hidden;
+  padding: 0 4px;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
 
-.field-group { margin-bottom: 20px; }
+.field-group { margin-bottom: 16px; }
 .field-label {
-  display: block; font-size: 14px; font-weight: 700; color: #374151;
-  margin-bottom: 8px; letter-spacing: -0.2px;
+  display: block; font-size: 13px; font-weight: 700; color: #374151;
+  margin-bottom: 6px; letter-spacing: -0.2px;
 }
 .field-input {
-  display: flex; align-items: center; gap: 12px;
-  background: #f8fafc; border-radius: 16px; padding: 0 16px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
+  background: #f8fafc; border-radius: 14px; padding: 0 14px; height: 48px;
   border: 2px solid transparent; transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
@@ -781,26 +792,26 @@ const mineOnlyProxy = computed({
   box-shadow: 0 0 0 4px rgba(79,70,229,0.1), 0 4px 12px rgba(79,70,229,0.15);
 }
 .field-input.textarea {
-  height: auto; padding: 12px 16px; align-items: flex-start;
-  min-height: 80px;
+  height: auto; padding: 10px 14px; align-items: flex-start;
+  min-height: 70px;
 }
 .fi-icon {
-  font-size: 20px; color: #9ca3af; flex-shrink: 0;
+  font-size: 18px; color: #9ca3af; flex-shrink: 0;
   transition: color 0.2s;
 }
 .field-input:focus-within .fi-icon { color: #4f46e5; }
 .field-input ion-input, .field-input ion-textarea {
   --padding-start: 0; --padding-end: 0; --background: transparent;
-  font-size: 16px; flex: 1; --color: #1e293b; --placeholder-color: #9ca3af;
+  font-size: 15px; flex: 1; --color: #1e293b; --placeholder-color: #9ca3af;
   font-weight: 500;
 }
 
 .upload-buttons {
-  display: flex; flex-direction: column; gap: 14px; width: 100%; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 12px;
 }
 .upload-btn {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  padding: 18px 20px; border-radius: 16px;
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 14px 16px; border-radius: 14px;
   border: 2px dashed #d1d5db; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   color: #4f46e5; font-size: 16px; font-weight: 700; cursor: pointer;
   transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -835,13 +846,15 @@ const mineOnlyProxy = computed({
 .remove-thumb:active { transform: scale(0.9); }
 
 .sheet-actions {
-  display: flex; gap: 12px; margin-top: 24px;
-  padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex; gap: 10px;
+  padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.98);
 }
 .sheet-actions ion-button {
-  flex: 1; --border-radius: 16px; font-weight: 700;
-  --padding-top: 14px; --padding-bottom: 14px;
-  font-size: 16px; letter-spacing: -0.2px;
+  flex: 1; --border-radius: 14px; font-weight: 700;
+  --padding-top: 12px; --padding-bottom: 12px;
+  font-size: 15px; letter-spacing: -0.2px;
 }
 
 /* ── Map Markers (deep) ────────────────── */
