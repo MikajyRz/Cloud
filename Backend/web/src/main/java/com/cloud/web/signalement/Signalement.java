@@ -16,6 +16,9 @@ public class Signalement {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "firestore_id", length = 128, unique = true)
+    private String firestoreId;
+
     @Column(length = 150)
     private String titre;
 
@@ -66,6 +69,14 @@ public class Signalement {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public String getFirestoreId() {
+        return firestoreId;
+    }
+
+    public void setFirestoreId(String firestoreId) {
+        this.firestoreId = firestoreId;
     }
 
     public String getTitre() {

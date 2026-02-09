@@ -1,6 +1,12 @@
 package com.cloud.web.report;
 
-import com.cloud.web.report.dto.SyncReportsResponse;
+import com.cloud.web.sync.dto.SyncResultDetailedDto;
+import com.cloud.web.signalement.Signalement;
+import com.cloud.web.signalement.SignalementRepository;
+import com.cloud.web.signalement.StatutTravaux;
+import com.cloud.web.utilisateur.Utilisateur;
+import com.cloud.web.utilisateur.UtilisateurRepository;
+import com.cloud.web.user.FirestoreUserSyncService;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
@@ -11,11 +17,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cloud.web.user.FirestoreUserSyncService;
-import com.cloud.web.user.UserRepository;
-
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,28 +28,28 @@ import java.util.Map;
 public class ReportSyncService {
 
     private final Firestore firestore;
-    private final ReportRepository reportRepository;
-    private final UserRepository userRepository;
+    private final SignalementRepository signalementRepository;
+    private final UtilisateurRepository utilisateurRepository;
     private final ObjectProvider<FirestoreUserSyncService> firestoreUserSyncService;
 
     private final String firestoreCollection;
 
     public ReportSyncService(
             Firestore firestore,
-            ReportRepository reportRepository,
-            UserRepository userRepository,
+            SignalementRepository signalementRepository,
+            UtilisateurRepository utilisateurRepository,
             ObjectProvider<FirestoreUserSyncService> firestoreUserSyncService,
             @Value("${firestore.reports.collection:signalements}") String firestoreCollection
     ) {
         this.firestore = firestore;
-        this.reportRepository = reportRepository;
-        this.userRepository = userRepository;
+        this.signalementRepository = signalementRepository;
+        this.utilisateurRepository = utilisateurRepository;
         this.firestoreUserSyncService = firestoreUserSyncService;
         this.firestoreCollection = firestoreCollection;
     }
 
     @Transactional
-    public SyncReportsResponse sync() {
+    public SyncResultDetailedDto sync() {
         FirestoreUserSyncService userSync = firestoreUserSyncService.getIfAvailable();
         if (userSync != null) {
             userSync.syncAllUsersToPostgres();
@@ -65,8 +70,8 @@ public class ReportSyncService {
         for (DocumentSnapshot doc : snap.getDocuments()) {
             String firestoreId = doc.getId();
 
-            Report r = reportRepository.findByFirestoreId(firestoreId).orElseGet(() -> {
-                Report created = new Report();
+            Signalement r = signalementRepository.findByFirestoreId(firestoreId).orElseGet(() -> {
+                Signalement created = new Signalement();
                 created.setFirestoreId(firestoreId);
                 created.setStatut(StatutTravaux.NOUVEAU);
                 return created;
@@ -84,18 +89,18 @@ public class ReportSyncService {
 
             String userEmail = doc.getString("userEmail");
             if (userEmail != null && !userEmail.isBlank()) {
-                userRepository.findByEmail(userEmail.toLowerCase())
-                        .ifPresent(u -> r.setIdUtilisateur(u.getId()));
+                utilisateurRepository.findByEmail(userEmail.toLowerCase())
+                        .ifPresent(u -> r.setUtilisateur(u));
             }
 
             Object createdAtObj = doc.get("createdAt");
             if (createdAtObj instanceof Timestamp ts) {
-                r.setDateSignalement(Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos()));
+                r.setDateSignalement(LocalDateTime.ofInstant(Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos()), ZoneId.systemDefault()));
             } else if (r.getDateSignalement() == null) {
-                r.setDateSignalement(Instant.now());
+                r.setDateSignalement(LocalDateTime.now());
             }
 
-            reportRepository.save(r);
+            signalementRepository.save(r);
 
             // Push enriched fields back to Firestore so mobile can display reference data.
             // Uses Admin SDK => not constrained by client rules.
@@ -104,8 +109,8 @@ public class ReportSyncService {
                 if (r.getStatut() != null) patch.put("statut", r.getStatut().name());
                 if (r.getSurfaceM2() != null) patch.put("surfaceM2", r.getSurfaceM2().doubleValue());
                 if (r.getBudget() != null) patch.put("budget", r.getBudget().doubleValue());
-                if (r.getIdEntreprise() != null) patch.put("idEntreprise", r.getIdEntreprise().toString());
-                if (r.getIdUtilisateur() != null) patch.put("idUtilisateur", r.getIdUtilisateur().toString());
+                if (r.getEntreprise() != null) patch.put("idEntreprise", r.getEntreprise().getId().toString());
+                if (r.getUtilisateur() != null) patch.put("idUtilisateur", r.getUtilisateur().getId().toString());
                 if (r.getDateSignalement() != null) patch.put("dateSignalement", r.getDateSignalement().toString());
 
                 if (!patch.isEmpty()) {
@@ -126,6 +131,6 @@ public class ReportSyncService {
             }
         }
 
-        return new SyncReportsResponse(fetched, inserted, updated, pushed, firestoreCollection);
+        return new SyncResultDetailedDto(fetched, inserted, updated, pushed, firestoreCollection);
     }
 }

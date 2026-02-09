@@ -1,5 +1,8 @@
 package com.cloud.web.user;
 
+import com.cloud.web.utilisateur.RoleUtilisateur;
+import com.cloud.web.utilisateur.Utilisateur;
+import com.cloud.web.utilisateur.UtilisateurRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.ListUsersPage;
 import com.google.firebase.auth.UserRecord;
@@ -13,11 +16,11 @@ public class FirebaseUserSyncService {
 
     private static final String FIREBASE_PLACEHOLDER_PASSWORD = "{firebase}";
 
-    private final UserRepository userRepository;
+    private final UtilisateurRepository utilisateurRepository;
     private final FirebaseAuth firebaseAuth;
 
-    public FirebaseUserSyncService(UserRepository userRepository, FirebaseAuth firebaseAuth) {
-        this.userRepository = userRepository;
+    public FirebaseUserSyncService(UtilisateurRepository utilisateurRepository, FirebaseAuth firebaseAuth) {
+        this.utilisateurRepository = utilisateurRepository;
         this.firebaseAuth = firebaseAuth;
     }
 
@@ -37,19 +40,19 @@ public class FirebaseUserSyncService {
             }
 
             String normalized = email.toLowerCase();
-            if (userRepository.existsByEmail(normalized)) {
+            if (utilisateurRepository.existsByEmail(normalized)) {
                 continue;
             }
 
-            User u = new User();
+            Utilisateur u = new Utilisateur();
             u.setEmail(normalized);
             u.setMotDePasse(FIREBASE_PLACEHOLDER_PASSWORD);
             u.setNom(record.getDisplayName());
             u.setPrenom(null);
-            u.setRole(UserRole.UTILISATEUR);
+            u.setRole(RoleUtilisateur.UTILISATEUR);
             u.setTentativesEchouees(0);
             u.setEstBloque(false);
-            userRepository.save(u);
+            utilisateurRepository.save(u);
         }
     }
 }

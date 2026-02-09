@@ -1,5 +1,8 @@
 package com.cloud.web.user;
 
+import com.cloud.web.utilisateur.RoleUtilisateur;
+import com.cloud.web.utilisateur.Utilisateur;
+import com.cloud.web.utilisateur.UtilisateurRepository;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
@@ -13,16 +16,16 @@ public class FirestoreUserSyncService {
     private static final String FIREBASE_PLACEHOLDER_PASSWORD = "{firebase}";
 
     private final Firestore firestore;
-    private final UserRepository userRepository;
+    private final UtilisateurRepository utilisateurRepository;
     private final String firestoreUsersCollection;
 
     public FirestoreUserSyncService(
             Firestore firestore,
-            UserRepository userRepository,
+            UtilisateurRepository utilisateurRepository,
             @Value("${firestore.users.collection:users}") String firestoreUsersCollection
     ) {
         this.firestore = firestore;
-        this.userRepository = userRepository;
+        this.utilisateurRepository = utilisateurRepository;
         this.firestoreUsersCollection = firestoreUsersCollection;
     }
 
@@ -45,11 +48,11 @@ public class FirestoreUserSyncService {
 
             String normalized = email.toLowerCase();
 
-            User user = userRepository.findByEmail(normalized).orElseGet(() -> {
-                User created = new User();
+            Utilisateur user = utilisateurRepository.findByEmail(normalized).orElseGet(() -> {
+                Utilisateur created = new Utilisateur();
                 created.setEmail(normalized);
                 created.setMotDePasse(FIREBASE_PLACEHOLDER_PASSWORD);
-                created.setRole(UserRole.UTILISATEUR);
+                created.setRole(RoleUtilisateur.UTILISATEUR);
                 created.setTentativesEchouees(0);
                 created.setEstBloque(false);
                 return created;
@@ -73,13 +76,13 @@ public class FirestoreUserSyncService {
             String roleStr = doc.getString("role");
             if (roleStr != null && !roleStr.isBlank()) {
                 try {
-                    user.setRole(UserRole.valueOf(roleStr));
+                    user.setRole(RoleUtilisateur.valueOf(roleStr));
                 } catch (Exception ignored) {
                     // ignore unknown role
                 }
             }
 
-            userRepository.save(user);
+            utilisateurRepository.save(user);
             upserted++;
         }
 
