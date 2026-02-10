@@ -763,7 +763,11 @@ const mineOnlyProxy = computed({
   border-radius: 12px; border: 1px solid rgba(79,70,229,0.1);
 }
 
-.form-scroll-area { max-height: 60vh; overflow-y: auto; padding: 0 4px; }
+.form-scroll-area {
+  max-height: calc(60vh - 80px); /* leave space for sticky actions */
+  overflow-y: auto;
+  padding: 0 4px;
+}
 
 .field-group { margin-bottom: 20px; }
 .field-label {
@@ -835,13 +839,26 @@ const mineOnlyProxy = computed({
 .remove-thumb:active { transform: scale(0.9); }
 
 .sheet-actions {
-  display: flex; gap: 12px; margin-top: 24px;
-  padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  background: rgba(255,255,255,0.98);
+  z-index: 10;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.04);
 }
 .sheet-actions ion-button {
-  flex: 1; --border-radius: 16px; font-weight: 700;
-  --padding-top: 14px; --padding-bottom: 14px;
-  font-size: 16px; letter-spacing: -0.2px;
+  flex: 1;
+  --border-radius: 16px;
+  font-weight: 700;
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  font-size: 16px;
+  letter-spacing: -0.2px;
 }
 
 /* ── Map Markers (deep) ────────────────── */
