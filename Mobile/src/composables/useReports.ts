@@ -30,6 +30,8 @@ export type ReportDoc = {
   surfaceM2?: number | null
   budget?: number | null
   entreprise?: string
+  niveauLibelle?: string
+  niveau?: number | string
 }
 
 type CreateReportInput = {
@@ -44,7 +46,7 @@ function getCollectionName() {
   return (import.meta.env.VITE_FIRESTORE_REPORTS_COLLECTION as string | undefined) ?? 'signalements'
 }
 
-export function useReports(firestore: Firestore = db) {
+ export function useReports(firestore: Firestore = db) {
   const { currentUser, getCurrentUser } = useAuth()
   const collectionRef = computed(() => collection(firestore, getCollectionName()))
 

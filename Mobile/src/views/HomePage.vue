@@ -271,16 +271,30 @@ const avancementPct = computed(() => {
   return Math.round(score / total)
 })
 
+const webPathToCompressedDataUrl = async (webPath: string): Promise<string> => {
+  const resp = await fetch(webPath)
+  const blob = await resp.blob()
+  const dataUrl = (await imageToBase64(new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })))
+  if (!dataUrl) {
+    throw new Error('Impossible de lire la photo')
+  }
+  return dataUrl
+}
+
 const takePhoto = async () => {
   try {
+    if (newReportImagePreviews.value.length >= 3) {
+      error.value = 'Maximum 3 photos par signalement.'
+      return
+    }
     const image = await Camera.getPhoto({
-      quality: 90,
+      quality: 70,
       allowEditing: false,
-      resultType: CameraResultType.Base64,
+      resultType: CameraResultType.Uri,
       source: CameraSource.Camera,
     })
-    if (image.base64String) {
-      const base64 = `data:${image.format};base64,${image.base64String}`
+    if (image.webPath) {
+      const base64 = await webPathToCompressedDataUrl(image.webPath)
       newReportImagePreviews.value.push(base64)
     }
   } catch (e) {
@@ -291,14 +305,18 @@ const takePhoto = async () => {
 
 const selectPhoto = async () => {
   try {
+    if (newReportImagePreviews.value.length >= 3) {
+      error.value = 'Maximum 3 photos par signalement.'
+      return
+    }
     const image = await Camera.getPhoto({
-      quality: 90,
+      quality: 70,
       allowEditing: false,
-      resultType: CameraResultType.Base64,
+      resultType: CameraResultType.Uri,
       source: CameraSource.Photos,
     })
-    if (image.base64String) {
-      const base64 = `data:${image.format};base64,${image.base64String}`
+    if (image.webPath) {
+      const base64 = await webPathToCompressedDataUrl(image.webPath)
       newReportImagePreviews.value.push(base64)
     }
   } catch (e) {
@@ -336,7 +354,7 @@ const handleCreateReport = async () => {
     isCreateOpen.value = false
   } catch (e) {
     console.error('Erreur lors de la création:', e)
-    /* --- Modern Signalement App Design --- */
+    error.value = e instanceof Error ? e.message : String(e)
   } finally {
     loading.value = false
   }
@@ -361,8 +379,8 @@ const imageToBase64 = (file: File): Promise<string | null> => {
       img.src = reader.result as string
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 800
-        const MAX_HEIGHT = 800
+        const MAX_WIDTH = 480
+        const MAX_HEIGHT = 480
         let { width, height } = img
 
         if (width > height) {
@@ -383,8 +401,24 @@ const imageToBase64 = (file: File): Promise<string | null> => {
           return reject(new Error('Could not get canvas context'))
         }
         ctx.drawImage(img, 0, 0, width, height)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-        resolve(dataUrl)
+
+        const estimateBytes = (dataUrl: string) => {
+          const idx = dataUrl.indexOf(',')
+          const b64 = idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl
+          return Math.floor((b64.length * 3) / 4)
+        }
+
+        const targetBytes = 220 * 1024
+        const qualities = [0.55, 0.45, 0.35, 0.28, 0.22]
+        for (const q of qualities) {
+          const dataUrl = canvas.toDataURL('image/jpeg', q)
+          if (estimateBytes(dataUrl) <= targetBytes) {
+            resolve(dataUrl)
+            return
+          }
+        }
+
+        resolve(canvas.toDataURL('image/jpeg', 0.2))
       }
       img.onerror = (error) => reject(error)
     }
@@ -462,6 +496,7 @@ const renderReportMarkers = () => {
     const m = L.marker([r.latitude, r.longitude], { icon: reportIcon })
     const title = r.titre ? `<strong>${escapeHtml(r.titre)}</strong>` : '<strong>Signalement</strong>'
     const desc = r.description ? `<div>${escapeHtml(r.description)}</div>` : ''
+    const niveau = r.niveauLibelle || r.niveau ? `<div><b>Niveau :</b> ${escapeHtml(r.niveauLibelle || String(r.niveau))}</div>` : ''
     const surface = r.surfaceM2 != null ? `<div><b>Surface :</b> ${r.surfaceM2} m²</div>` : ''
     const budget = r.budget != null ? `<div><b>Budget :</b> ${r.budget} €</div>` : ''
     const entreprise = r.entreprise ? `<div><b>Entreprise :</b> ${escapeHtml(r.entreprise)}</div>` : ''
@@ -472,7 +507,7 @@ const renderReportMarkers = () => {
         + r.imageUrls.map((url, idx) => `<a href='${url}' target='_blank' style='display:inline-block;margin-right:6px'><img src='${url}' alt='photo${idx+1}' style='width:48px;height:48px;border-radius:6px;border:1px solid #ccc;object-fit:cover'/></a>`).join('')
         + '</div>'
     }
-    m.bindPopup(`${title}${desc}${surface}${budget}${entreprise}${status}${photosHtml}`)
+    m.bindPopup(`${title}${desc}${niveau}${surface}${budget}${entreprise}${status}${photosHtml}`)
     m.addTo(reportLayer as L.LayerGroup)
   })
 }

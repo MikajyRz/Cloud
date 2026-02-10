@@ -306,6 +306,8 @@ export default function ManagerPage() {
             <Link className="btn" to="/manager/signalements">Signalements</Link>
             <Link className="btn" to="/manager/utilisateurs">Utilisateurs</Link>
             <Link className="btn" to="/manager/statistiques">Statistiques</Link>
+            <Link className="btn btn--primary" to="/manager/budget">Calcul budget</Link>
+            <Link className="btn btn--secondary" to="/manager/prix-par-m2">Prix par m²</Link>
           </div>
         </div>
       </div>

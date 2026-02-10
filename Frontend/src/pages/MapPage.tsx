@@ -133,6 +133,7 @@ export default function MapPage() {
                 dateSignalement: r.dateSignalement ?? null,
                 surfaceM2: r.surfaceM2 ?? null,
                 budget: r.budget ?? null,
+                niveau: r.niveauLibelle ?? r.niveau ?? null,
                 entrepriseNom: r.entrepriseNom ?? null,
                 imageCount: r.imageUrls?.length ?? 0,
                 imageUrls: r.imageUrls ? JSON.stringify(r.imageUrls) : '[]',
@@ -205,6 +206,7 @@ export default function MapPage() {
               <div style="font-size:12px; min-width: 220px; padding: 4px;">
                 <div><strong>Date:</strong> ${formatDate((p as any).dateSignalement)}</div>
                 <div><strong>Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>Niveau:</strong> ${(p as any).niveau ?? '—'}</div>
                 <div><strong>Surface:</strong> ${formatNumber((p as any).surfaceM2)} m²</div>
                 <div><strong>Budget:</strong> ${formatNumber((p as any).budget)}</div>
                 <div><strong>Entreprise:</strong> ${(p as any).entrepriseNom ? String((p as any).entrepriseNom) : '—'}</div>
@@ -263,6 +265,7 @@ export default function MapPage() {
               <div style="font-size:13px; min-width: 240px; line-height: 1.6;">
                 <div><strong>📅 Date:</strong> ${formatDate(p.dateSignalement)}</div>
                 <div><strong>📊 Statut:</strong> ${statut ?? '—'}</div>
+                <div><strong>🔢 Niveau:</strong> ${p.niveau ?? '—'}</div>
                 <div><strong>📐 Surface:</strong> ${formatNumber(p.surfaceM2)} m²</div>
                 <div><strong>💰 Budget:</strong> ${formatNumber(p.budget)}</div>
                 <div><strong>🏢 Entreprise:</strong> ${p.entrepriseNom ? String(p.entrepriseNom) : '—'}</div>

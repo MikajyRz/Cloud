@@ -1,3 +1,16 @@
+-- 8. Prix forfaitaire par m2
+CREATE TABLE prix_par_m2 (
+    id BIGSERIAL PRIMARY KEY,
+    valeur NUMERIC(10,2) NOT NULL,
+    date_modif TIMESTAMP(6) DEFAULT NOW()
+);
+
+-- 9. Niveaux de réparation
+CREATE TABLE niveau_reparation (
+    id BIGSERIAL PRIMARY KEY,
+    valeur INT NOT NULL CHECK (valeur BETWEEN 1 AND 10),
+    libelle VARCHAR(50)
+);
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 

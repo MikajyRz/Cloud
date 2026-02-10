@@ -12,6 +12,8 @@ type Signalement = {
   longitude: number
   surfaceM2?: number
   budget?: number
+  niveauId?: number
+  niveauLibelle?: string
   statut: string
   emailUtilisateur?: string
   nomEntreprise?: string
@@ -22,6 +24,13 @@ type Signalement = {
 }
 
 export default function SignalementsPage() {
+    const [niveaux, setNiveaux] = useState<{ id: number, valeur: number, libelle: string }[]>([])
+    useEffect(() => {
+      fetch(`${API_BASE}/api/niveaux`)
+        .then(res => res.json())
+        .then(data => setNiveaux(data))
+        .catch(() => {})
+    }, [])
   const { token } = useAuth()
   const [signalements, setSignalements] = useState<Signalement[]>([])
   const [loading, setLoading] = useState(false)
@@ -166,6 +175,19 @@ export default function SignalementsPage() {
               <tbody>
                 {signalements.map((sig) => (
                   <tr key={sig.id}>
+                                        <td>
+                                          <select
+                                            className="input"
+                                            value={sig.niveauId ?? ''}
+                                            onChange={e => updateField(sig.id, 'niveauId', e.target.value)}
+                                            style={{ width: 80 }}
+                                          >
+                                            <option value="">Niveau</option>
+                                            {niveaux.map(n => (
+                                              <option key={n.id} value={n.id}>{n.libelle} (niveau {n.valeur})</option>
+                                            ))}
+                                          </select>
+                                        </td>
                     <td>
                       {sig.imageUrls && sig.imageUrls.length > 0 ? (
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -238,6 +260,20 @@ export default function SignalementsPage() {
                         placeholder="€"
                         onBlur={(e) => updateField(sig.id, 'budget', e.target.value)}
                       />
+                      <button
+                        className="btn btn--secondary"
+                        style={{ marginLeft: 4, fontSize: '0.85rem', padding: '2px 8px' }}
+                        onClick={async () => {
+                          if (!sig.niveauId || !sig.surfaceM2) return
+                          try {
+                            const res = await fetch(`${API_BASE}/api/manager/budget?niveauId=${sig.niveauId}&surfaceM2=${sig.surfaceM2}`)
+                            if (!res.ok) throw new Error('Erreur calcul budget')
+                            const value = await res.json()
+                            updateField(sig.id, 'budget', value)
+                          } catch {}
+                        }}
+                        type="button"
+                      >Calculer</button>
                     </td>
                     <td>
                       <input
