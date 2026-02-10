@@ -9,6 +9,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/signalements")
+@CrossOrigin(origins = "http://localhost:5173")
 public class SignalementController {
 
     private final SignalementService signalementService;

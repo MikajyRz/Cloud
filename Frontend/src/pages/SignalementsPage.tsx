@@ -170,19 +170,41 @@ export default function SignalementsPage() {
                       {sig.imageUrls && sig.imageUrls.length > 0 ? (
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                           {sig.imageUrls.slice(0, 3).map((url, idx) => (
-                            <img 
-                              key={idx} 
-                              src={url} 
-                              alt={`Image ${idx + 1}`}
-                              style={{ 
-                                width: '50px', 
-                                height: '50px', 
-                                objectFit: 'cover',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                              onClick={() => window.open(url, '_blank')}
-                            />
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Voir la photo"
+                              style={{ position: 'relative', display: 'inline-block' }}
+                            >
+                              <img
+                                src={url}
+                                alt={`Image ${idx + 1}`}
+                                style={{
+                                  width: '50px',
+                                  height: '50px',
+                                  objectFit: 'cover',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  border: '1px solid #ccc',
+                                  transition: 'box-shadow 0.2s',
+                                }}
+                              />
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  background: 'rgba(0,0,0,0.05)',
+                                  opacity: 0,
+                                  transition: 'opacity 0.2s',
+                                }}
+                                className="photo-hover-overlay"
+                              />
+                            </a>
                           ))}
                           {sig.imageUrls.length > 3 && (
                             <span className="badge">+{sig.imageUrls.length - 3}</span>

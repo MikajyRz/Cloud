@@ -536,6 +536,15 @@ public class FirebaseSyncService {
                         SignalementSyncDto dto = new SignalementSyncDto(pgSignalement);
                         Map<String, Object> sigData = convertToMap(dto);
                         
+                        // Preserve uid and userEmail from current Firestore data to prevent mobile queries from failing
+                        Map<String, Object> currentData = doc.getData();
+                        if (currentData.containsKey("uid")) {
+                            sigData.put("uid", currentData.get("uid"));
+                        }
+                        if (currentData.containsKey("userEmail")) {
+                            sigData.put("userEmail", currentData.get("userEmail"));
+                        }
+                        
                         sigRef.document(idStr).set(sigData).get();
                         
                         result.getSignalements().incrementMisAJour();

@@ -53,6 +53,7 @@ public class SignalementSyncDto {
         this.budget = sig.getBudget() != null ? sig.getBudget().doubleValue() : null;
         this.statut = sig.getStatut().name();
         this.emailUtilisateur = sig.getUtilisateur() != null ? sig.getUtilisateur().getEmail() : null;
+        this.userEmail = this.emailUtilisateur; // Ensure userEmail is set for Firestore
         // Convertir le JSON stocké en List<String>
         if (sig.getImageUrls() != null && !sig.getImageUrls().isEmpty()) {
             try {

@@ -75,6 +75,8 @@ MODULE MOBILE
 2. Signalement des problèmes:
    - Localisation sur carte (Leaflet + OpenStreetMap)
    - Ajout de photos (1 ou plusieurs)
+   - Inputs: titre, description, image
+   - Les autres informations (surface, budget, entreprise) sont mises à jour par le manager depuis le web
 3. Visualisation:
    - Affichage de la carte avec les problèmes
    - Tableau récapitulatif (identique au web)

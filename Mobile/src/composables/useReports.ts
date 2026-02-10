@@ -27,6 +27,9 @@ export type ReportDoc = {
   createdAt?: unknown
   imageUrls?: string[]
   status: string
+  surfaceM2?: number | null
+  budget?: number | null
+  entreprise?: string
 }
 
 type CreateReportInput = {
@@ -34,8 +37,6 @@ type CreateReportInput = {
   description: string
   latitude: number
   longitude: number
-  surfaceM2: number | null
-  budget: number | null
   imageUrls: string[]  // Images en base64
 }
 
@@ -59,8 +60,6 @@ export function useReports(firestore: Firestore = db) {
       uid: u.uid,
       userEmail: u.email ?? null,
       createdAt: serverTimestamp(),
-      surfaceM2: input.surfaceM2,
-      budget: input.budget,
       imageUrls: input.imageUrls,
       status: 'NOUVEAU',
     })

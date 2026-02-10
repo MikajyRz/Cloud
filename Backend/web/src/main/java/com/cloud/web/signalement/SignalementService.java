@@ -136,6 +136,10 @@ public class SignalementService {
         var signalement = signalementRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Signalement non trouvé"));
 
+        // SÉCURITÉ : Ne jamais modifier le champ utilisateur d'origine lors d'une mise à jour !
+        // Ce champ doit rester celui du créateur initial du signalement.
+        // Si une requête tente de le modifier, on ignore la modification.
+
         if (request.surfaceM2() != null) {
             signalement.setSurfaceM2(request.surfaceM2());
         }
@@ -160,7 +164,6 @@ public class SignalementService {
                 signalement.setDateTermine(LocalDateTime.now());
             }
             signalement.setStatut(newStatut);
-            
             // Créer une notification pour le changement de statut
             if (oldStatut != newStatut) {
                 notificationService.creerNotificationChangementStatut(
@@ -171,6 +174,8 @@ public class SignalementService {
                 );
             }
         }
+
+        // Vérification explicite : on ne touche jamais à signalement.setUtilisateur() ici !
 
         signalementRepository.save(signalement);
         return toDto(signalement);
