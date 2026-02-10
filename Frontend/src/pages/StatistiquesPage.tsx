@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ManagerLayout from '@/ui/ManagerLayout'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080'
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || ''
 
 type Stats = {
   nombreTotal: number

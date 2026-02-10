@@ -1,6 +1,13 @@
-FROM node:latest
+FROM node:lts AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:lts
 WORKDIR /app
 RUN npm i -g serve
-COPY dist ./dist
+COPY --from=builder /app/dist ./dist
 EXPOSE 80
 CMD ["serve","-s","dist","-l","80"]

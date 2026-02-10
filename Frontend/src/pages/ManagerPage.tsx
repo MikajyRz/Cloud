@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { unlockUtilisateurApi, synchronizeBidirectionalApi, type SyncResultDto } from '@/auth/api'
 import ManagerLayout from '@/ui/ManagerLayout'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080'
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || ''
 
 type AppConfig = {
   id: number
@@ -179,6 +179,7 @@ export default function ManagerPage() {
                     <span className="muted" style={{ fontSize: '0.85rem' }}>
                       {config.configKey === 'session.duration.minutes' && 'minutes'}
                       {config.configKey === 'auth.max.login.attempts' && 'tentatives'}
+                      {config.configKey === 'prix.par.m2' && '€/m²'}
                     </span>
                   </div>
                   <div className="muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>

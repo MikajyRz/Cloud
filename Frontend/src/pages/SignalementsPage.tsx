@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/auth/AuthContext'
 import ManagerLayout from '@/ui/ManagerLayout'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080'
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || ''
 
 type Signalement = {
   id: string
@@ -11,6 +11,7 @@ type Signalement = {
   latitude: number
   longitude: number
   surfaceM2?: number
+  niveau?: number
   budget?: number
   statut: string
   emailUtilisateur?: string
@@ -26,6 +27,7 @@ export default function SignalementsPage() {
   const [signalements, setSignalements] = useState<Signalement[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [prixParM2, setPrixParM2] = useState<number>(100) // Valeur par défaut
 
   const statuts = useMemo(() => ['NOUVEAU', 'EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ANNULE'] as const, [])
 
@@ -43,6 +45,24 @@ export default function SignalementsPage() {
         return 'Annulé'
       default:
         return s
+    }
+  }
+
+  const loadPrixParM2 = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_BASE}/api/config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const configs = await response.json()
+        const prixConfig = configs.find((c: any) => c.configKey === 'prix.par.m2')
+        if (prixConfig) {
+          setPrixParM2(parseFloat(prixConfig.configValue))
+        }
+      }
+    } catch (err) {
+      console.error('Erreur chargement prix par m2:', err)
     }
   }
 
@@ -95,14 +115,31 @@ export default function SignalementsPage() {
     }
   }
 
+  const calculateBudget = (surfaceM2?: number, niveau?: number): number => {
+    if (!surfaceM2 || !niveau) return 0
+    return prixParM2 * niveau * surfaceM2
+  }
+
   const updateField = async (id: string, field: string, value: string) => {
     if (!token) return
 
     const body: Record<string, unknown> = {}
-    if (field === 'surfaceM2' || field === 'budget') {
+    if (field === 'surfaceM2' || field === 'budget' || field === 'niveau') {
       const num = parseFloat(value)
       if (isNaN(num)) return
       body[field] = num
+      
+      // Calcul automatique du budget si niveau ou surface change
+      if (field === 'niveau' || field === 'surfaceM2') {
+        const sig = signalements.find(s => s.id === id)
+        if (sig) {
+          const newSurface = field === 'surfaceM2' ? num : (sig.surfaceM2 || 0)
+          const newNiveau = field === 'niveau' ? num : (sig.niveau || 0)
+          if (newSurface > 0 && newNiveau > 0) {
+            body['budget'] = calculateBudget(newSurface, newNiveau)
+          }
+        }
+      }
     } else {
       body[field] = value
     }
@@ -128,6 +165,7 @@ export default function SignalementsPage() {
   }
 
   useEffect(() => {
+    loadPrixParM2()
     loadSignalements()
   }, [])
 
@@ -156,6 +194,7 @@ export default function SignalementsPage() {
                   <th>Description</th>
                   <th>Coordonnées</th>
                   <th>Surface</th>
+                  <th>Niveau</th>
                   <th>Budget</th>
                   <th>Entreprise</th>
                   <th>Utilisateur</th>
@@ -233,10 +272,24 @@ export default function SignalementsPage() {
                       <input
                         className="input"
                         type="number"
+                        min="1"
+                        max="10"
+                        style={{ width: 60 }}
+                        defaultValue={sig.niveau ?? ''}
+                        placeholder="1-10"
+                        onBlur={(e) => updateField(sig.id, 'niveau', e.target.value)}
+                        title="Niveau de réparation (1-10)"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="number"
                         style={{ width: 90 }}
-                        defaultValue={sig.budget ?? ''}
+                        value={sig.budget ?? ''}
                         placeholder="€"
-                        onBlur={(e) => updateField(sig.id, 'budget', e.target.value)}
+                        readOnly
+                        title="Calculé automatiquement: prix_par_m2 × niveau × surface"
                       />
                     </td>
                     <td>

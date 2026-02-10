@@ -31,6 +31,9 @@ public class Signalement {
     @Column(name = "surface_m2", precision = 10, scale = 2)
     private BigDecimal surfaceM2;
 
+    @Column(name = "niveau")
+    private Integer niveau;
+
     @Column(precision = 14, scale = 2)
     private BigDecimal budget;
 
@@ -106,6 +109,14 @@ public class Signalement {
 
     public void setSurfaceM2(BigDecimal surfaceM2) {
         this.surfaceM2 = surfaceM2;
+    }
+
+    public Integer getNiveau() {
+        return niveau;
+    }
+
+    public void setNiveau(Integer niveau) {
+        this.niveau = niveau;
     }
 
     public BigDecimal getBudget() {

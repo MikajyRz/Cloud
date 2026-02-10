@@ -1,5 +1,6 @@
 package com.cloud.web.signalement;
 
+import com.cloud.web.config.AppConfigRepository;
 import com.cloud.web.entreprise.Entreprise;
 import com.cloud.web.entreprise.EntrepriseRepository;
 import com.cloud.web.notification.NotificationService;
@@ -19,13 +20,16 @@ public class SignalementService {
     private final SignalementRepository signalementRepository;
     private final EntrepriseRepository entrepriseRepository;
     private final NotificationService notificationService;
+    private final AppConfigRepository configRepository;
 
     public SignalementService(SignalementRepository signalementRepository, 
                               EntrepriseRepository entrepriseRepository,
-                              NotificationService notificationService) {
+                              NotificationService notificationService,
+                              AppConfigRepository configRepository) {
         this.signalementRepository = signalementRepository;
         this.entrepriseRepository = entrepriseRepository;
         this.notificationService = notificationService;
+        this.configRepository = configRepository;
     }
 
     // Public pour afficher sur la carte
@@ -143,8 +147,23 @@ public class SignalementService {
         if (request.surfaceM2() != null) {
             signalement.setSurfaceM2(request.surfaceM2());
         }
+        if (request.niveau() != null) {
+            signalement.setNiveau(request.niveau());
+        }
+        
+        // Calcul automatique du budget si niveau et surface sont définis
         if (request.budget() != null) {
             signalement.setBudget(request.budget());
+        } else if (signalement.getSurfaceM2() != null && signalement.getNiveau() != null) {
+            // Récupérer le prix par m2 depuis la configuration
+            BigDecimal prixParM2 = configRepository.findByConfigKey("prix.par.m2")
+                .map(c -> new BigDecimal(c.getConfigValue()))
+                .orElse(new BigDecimal("100")); // Valeur par défaut
+            
+            BigDecimal budget = signalement.getSurfaceM2()
+                .multiply(BigDecimal.valueOf(signalement.getNiveau()))
+                .multiply(prixParM2);
+            signalement.setBudget(budget);
         }
         if (request.nomEntreprise() != null && !request.nomEntreprise().isEmpty()) {
             Entreprise entreprise = entrepriseRepository.findByNom(request.nomEntreprise())
@@ -205,6 +224,7 @@ public class SignalementService {
             signalement.getLatitude(),
             signalement.getLongitude(),
             signalement.getSurfaceM2(),
+            signalement.getNiveau(),
             signalement.getBudget(),
             signalement.getStatut().name(),
             signalement.getUtilisateur() != null ? signalement.getUtilisateur().getEmail() : null,

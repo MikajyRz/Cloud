@@ -12,6 +12,7 @@ public record SignalementDto(
     BigDecimal latitude,
     BigDecimal longitude,
     BigDecimal surfaceM2,
+    Integer niveau,
     BigDecimal budget,
     String statut,
     String emailUtilisateur,
